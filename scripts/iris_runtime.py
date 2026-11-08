@@ -67,16 +67,30 @@ def inspect_archive(archive: Path, expected_arch: str) -> tuple[str, str]:
     raise ValueError("Archive must contain an accepted IRIS AI Hub Community Docker image and its metadata.")
 
 
-def update_environment(path: Path, image: str) -> None:
-    """Preserve private settings and atomically change only the local image setting."""
-    original = path.read_text() if path.exists() else ""
-    lines = [line for line in original.splitlines() if not re.match(r"^\s*(?:export\s+)?IRIS_IMAGE\s*=", line)]
-    lines.append(f"IRIS_IMAGE={image}")
+def write_runtime_override(path: Path, image: str, build: str) -> None:
+    """Select a literal image and fresh build-specific storage without editing .env."""
+    if build not in SUPPORTED_BUILDS or image != f"food-rescue/iris-aihub:{build}":
+        raise ValueError("The runtime override requires an accepted local AI Hub image.")
+    marker = {"generator": "allfedo.iris_runtime", "schema": 1}
+    if path.is_symlink():
+        raise ValueError("Refusing to replace a linked Compose override.")
+    if path.exists():
+        try:
+            original = json.loads(path.read_text())
+        except (ValueError, UnicodeError):
+            original = None
+        if not isinstance(original, dict) or original.get("x-allfedo-runtime") != marker:
+            raise ValueError("A foreign compose.override.yaml exists; keep it safe and move it before installing.")
+    override = {
+        "x-allfedo-runtime": marker,
+        "services": {"iris": {"image": image}},
+        "volumes": {"iris-data": {"name": f"allfedo-iris-{build}"}},
+    }
     temporary = None
     try:
-        with tempfile.NamedTemporaryFile(mode="w", dir=path.parent, prefix=".env.", delete=False) as handle:
+        with tempfile.NamedTemporaryFile(mode="w", dir=path.parent, prefix=".runtime-", delete=False) as handle:
             temporary = Path(handle.name)
-            handle.write("\n".join(lines) + "\n")
+            handle.write(json.dumps(override, indent=2) + "\n")
             handle.flush()
             os.fsync(handle.fileno())
         os.chmod(temporary, 0o600)
@@ -86,24 +100,59 @@ def update_environment(path: Path, image: str) -> None:
             temporary.unlink()
 
 
-def verify_native(timeout: float = 120) -> str:
-    """Wait for a native terminal and require compiled Hub classes, not just a port."""
+def _compose_command(*arguments: str) -> list[str]:
+    return ["docker", "compose", "--file", str(PROJECT / "compose.yaml"),
+            "--file", str(PROJECT / "compose.override.yaml"), *arguments]
+
+
+def verify_native(expected_build: str, expected_image_id: str, timeout: float = 120) -> str:
+    """Require the selected image, native build, successful session, and Hub classes.
+
+    This checks an installed native runtime, not application setup, web endpoints,
+    or a provider/model call. Retries share one bounded startup deadline.
+    """
+    if expected_build not in SUPPORTED_BUILDS:
+        raise ValueError("Native verification requires an accepted AI Hub build.")
+    if not re.fullmatch(r"sha256:[a-f0-9]{64}", expected_image_id):
+        raise ValueError("Native verification requires the loaded Docker image ID.")
     deadline = time.monotonic() + timeout
-    command = ["docker", "compose", "exec", "-T", "iris", "iris", "session", "IRIS", "-U", "%SYS"]
+
+    def probe(command: list[str], *, input: str | None = None):
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise subprocess.TimeoutExpired(command, timeout)
+        return subprocess.run(command, cwd=PROJECT, input=input, text=True,
+                              capture_output=True, timeout=min(15, remaining))
+
     while time.monotonic() < deadline:
         try:
-            result = subprocess.run(command, cwd=PROJECT, input=PROBE, text=True,
-                                    capture_output=True, timeout=15)
+            containers = probe(_compose_command("ps", "--quiet", "iris"))
+            ids = containers.stdout.splitlines() if containers.returncode == 0 else []
+            if len(ids) == 1 and ids[0].strip():
+                container_id = ids[0].strip()
+                image = probe(["docker", "inspect", "--format", "{{.Image}}", container_id])
+                if image.returncode == 0:
+                    if image.stdout.strip() != expected_image_id:
+                        raise RuntimeError("The running IRIS container does not use the loaded image.")
+                    result = probe(["docker", "exec", "-i", container_id, "iris", "session", "IRIS", "-U", "%SYS"], input=PROBE)
+                    version = re.search(r"(?m)^FOOD_RESCUE_VERSION=([^\r\n]+)\r?$", result.stdout)
+                    if result.returncode == 0 and version:
+                        actual_version = version.group(1).strip()
+                        build = re.search(r"\b(\d{4}\.\d+\.\d+(?:AI)?)\s+\(Build (\d+)(?:\.(\d+))?U?\)", actual_version)
+                        actual_build = f"{build[1]}.{build[2]}.{build[3] or '0'}" if build else None
+                        if actual_build != expected_build:
+                            raise RuntimeError("The native IRIS version does not match the selected accepted build.")
+                        lines = result.stdout.splitlines()
+                        missing = [name for name in ("AGENT", "PROVIDER", "TOOLSET")
+                                   if f"FOOD_RESCUE_{name}=1" not in lines]
+                        if missing:
+                            raise RuntimeError("IRIS started but required AI Hub classes were not found: " + ", ".join(missing))
+                        return actual_version
         except subprocess.TimeoutExpired:
-            continue
-        version = re.search(r"(?m)^FOOD_RESCUE_VERSION=(.+)$", result.stdout)
-        if version:
-            missing = [name for name in ("AGENT", "PROVIDER", "TOOLSET")
-                       if f"FOOD_RESCUE_{name}=1" not in result.stdout]
-            if missing:
-                raise RuntimeError("IRIS started but required AI Hub classes were not found: " + ", ".join(missing))
-            return version.group(1).strip()
-        time.sleep(2)
+            pass
+        remaining = deadline - time.monotonic()
+        if remaining > 0:
+            time.sleep(min(2, remaining))
     raise RuntimeError("Native IRIS verification timed out. Inspect this project's IRIS startup logs locally.")
 
 
@@ -119,12 +168,15 @@ def install(archive: Path) -> None:
     subprocess.run(["docker", "image", "load", "--quiet", "--input", str(archive)], check=True)
     image = f"food-rescue/iris-aihub:{build}"
     subprocess.run(["docker", "image", "tag", source, image], check=True)
-    update_environment(PROJECT / ".env", image)
+    loaded = subprocess.run(["docker", "image", "inspect", "--format", "{{.Id}}", image],
+                            check=True, capture_output=True, text=True, timeout=15)
+    image_id = loaded.stdout.strip()
+    write_runtime_override(PROJECT / "compose.override.yaml", image, build)
     # Quiet validation avoids printing the resolved OpenAI key from Compose configuration.
-    subprocess.run(["docker", "compose", "config", "--quiet"], cwd=PROJECT, check=True)
-    subprocess.run(["docker", "compose", "up", "-d", "iris", "mailpit"], cwd=PROJECT, check=True)
+    subprocess.run(_compose_command("config", "--quiet"), cwd=PROJECT, check=True)
+    subprocess.run(_compose_command("up", "-d", "iris", "mailpit"), cwd=PROJECT, check=True)
     print("Checking the actual IRIS version and AI Hub classes...", flush=True)
-    print(verify_native(), flush=True)
+    print(verify_native(build, image_id), flush=True)
     print("Native AI Hub classes found. No model call or application workflow has run yet.")
 
 
@@ -134,7 +186,8 @@ def main() -> None:
     args = parser.parse_args()
     try:
         install(args.archive)
-    except (OSError, ValueError, RuntimeError, tarfile.TarError, subprocess.CalledProcessError) as error:
+    except (OSError, ValueError, RuntimeError, tarfile.TarError,
+            subprocess.CalledProcessError, subprocess.TimeoutExpired) as error:
         parser.exit(1, f"Installation not complete: {error}\n")
 
 
