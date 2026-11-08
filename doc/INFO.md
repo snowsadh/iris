@@ -223,6 +223,8 @@ Conditions:
 
 Experts also ask for a distinctive technical contribution and bonuses that serve the app. They explicitly say innovation need not mean complexity. This is advice, not a weighted scoring formula. [Expert guidance](https://community.intersystems.com/post/what-experts-look-contest-entries).
 
+Read past winners against their own contest theme. Contest 48 required an IRIS management interface; OcuPilot added an AI copilot to that task. Its platform focus alone does not establish a general judge preference for developer tools. [Contest 48 task](https://openexchange.intersystems.com/contest/48).
+
 Suggested app checks, not extra contest rules: invalid input, provider outage, bounded retries, duplicate request, rejected agent output, and human-review path. Record input, decision, tool calls, model, elapsed time, and token usage. Show live and replay modes clearly. Cost estimates need model prices and recorded usage; no measured cost yet.
 
 ## 9. Current limits and next decisions

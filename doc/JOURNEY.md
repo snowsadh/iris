@@ -10,12 +10,12 @@ Record project decisions, design tradeoffs, experiments, and lessons useful for 
 - **Why it matters:** Reading replies revealed requirements that headline announcement did not fully reflect. Sources and exact versions stay in research notes.
 - **Status:** No app idea, model, or architecture chosen. No IRIS image downloaded or workflow tested.
 
-## 2026-11-09 — Food rescue becomes the working direction
+## 2026-11-09 — Explore candidates and set the execution standard
 
-- **Direction:** User favors connecting surplus food with shelters, for now. Avoid shipment recovery because RouteGuard and IRIS Chronos already cover that field.
+- **Candidate status:** No idea selected. Food rescue is one option worth exploring. User explicitly clarified that interest does not lock it in. Avoid shipment recovery overlap with RouteGuard and IRIS Chronos.
 - **Quality reference:** After reviewing OcuPilot, user highlighted two strengths: a useful idea built for IRIS users and thorough documentation with clear resources. Our target includes both technical originality and execution.
-- **Design question:** What useful IRIS integration work would make food rescue stand out? The domain alone does not answer that question.
-- **Next:** Define one complete case, its technical contribution, and how a reviewer can verify it. Food rescue is provisional; architecture and implementation remain undecided.
+- **Design question:** For each candidate, what useful technical contribution makes it stand out and fits this contest? OcuPilot's original contest specifically asked for a new IRIS management interface; its platform focus must be read in that context.
+- **Next:** Keep comparing ideas and their technical contributions before selection. No app, architecture, or implementation chosen.
 
 ## Entry pattern
 

@@ -44,6 +44,7 @@
 
 - Keep `doc/IDEA.md` ignored by Git. Preserve the root ignore rule for older local copies.
 - Use it for contest and idea research as requested. Record sources, uncertainties, and candidate ideas; do not treat candidates as user's chosen project.
+- No idea is selected yet. Interest in a candidate is not a decision; wait for explicit selection before calling it our project or working direction.
 - Do not copy its contents into tracked files or public issues/PRs without user's instruction.
 
 ### Meko restrictions
