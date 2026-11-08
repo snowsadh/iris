@@ -40,6 +40,13 @@ Record project decisions, design tradeoffs, experiments, and lessons useful for 
 - **Evidence boundary:** Read official guides and sample classes. No accepted AI Hub image is available, so native compilation and end-to-end checks remain pending.
 - **Next:** Keep idea selection open. Verify a small native workflow on the accepted image before committing to its full architecture.
 
+## 2026-11-09 — Separate a competitive plan from a valid submission
+
+- **Check:** Rechecked current entries, organizer corrections, judging advice, and all published bonuses. The contest page showed 36 entries. Candidate-specific comparisons remain private.
+- **Time constraint:** At 03:24 IST, about seven hours remained before initial registration closed. No app or accepted runtime had been validated. Improvements during voting do not remove the need for a working initial entry.
+- **Learning:** Track fit, distinctive value, and an achievable release are separate questions. A familiar evidence-review pattern needs a specific contribution to stand out; adding bonus features alone does not provide it.
+- **Next:** Use [SUBMISSION.md](SUBMISSION.md) to prioritize a complete native case and reliable setup before optional additions. No idea selected and no release outcome claimed.
+
 ## Entry pattern
 
 Use only fields that help:

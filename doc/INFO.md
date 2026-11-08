@@ -225,6 +225,8 @@ Conditions:
 
 ## 8. Submission and judging checklist
 
+For a short working list, use [SUBMISSION.md](SUBMISSION.md). It separates required work, our delivery standard, and every optional bonus.
+
 1. Create Open Exchange account and app listing. Fill repository, license, description, categories, and relevant resource links. **Save** keeps draft; **Send for Approval** submits review. [Listing guide](https://docs.openexchange.intersystems.com/apps/submit/).
 2. Apply to contest 49 and verify entry association. Generic guide offers contest Apply button, app Contest tab, or developer-portal menu. Its approval wording conflicts with contest-specific pending-review allowance above. [Application guide](https://docs.openexchange.intersystems.com/contest/apply/).
 3. Test README from clean setup. Include sample input, expected result, exact build, model/key settings, and visible agent decision.
