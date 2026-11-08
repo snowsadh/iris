@@ -14,14 +14,14 @@ Create `.env` from [.env.example](.env.example) if it does not already exist. Pu
 python3 scripts/iris_runtime.py /path/to/iris-community-2027.1.0AI.109.0-docker.tar.gz
 ```
 
-The installer checks the archive's build/platform, loads and tags it locally, preserves private settings, starts IRIS and a test email inbox, and checks the actual IRIS version and compiled Hub classes. It does not configure or claim a working application or model call.
+The installer checks the archive's build/platform, loads and tags it locally, preserves private settings, starts IRIS and a test email inbox, and checks the actual IRIS version and compiled Hub classes. An ignored `compose.override.yaml` selects the installed image and a separate data volume per build. This prevents a build change from silently upgrading an incompatible database. It does not configure or claim a working application or model call.
 
 Local developer endpoints after successful startup:
 
 - IRIS Management Portal: <http://127.0.0.1:52773/csp/sys/UtilHome.csp>
 - Mailpit test inbox: <http://127.0.0.1:8025>
 
-The services bind to the local machine. Named volumes preserve runtime and inbox data across container replacement. No source folder or private idea notes are mounted into IRIS. Port overrides are in `.env.example`.
+The services bind to the local machine. Named volumes preserve runtime and inbox data across container replacement. Only the ObjectScript and Python source folders are mounted read-only into IRIS. Private settings and idea notes are not mounted. Port overrides are in `.env.example`.
 
 Repeat the archive and configuration checks:
 
@@ -30,7 +30,13 @@ python3 -m unittest discover -s tests -v
 docker compose config --quiet
 ```
 
-These checks do not simulate native installation, concurrent SQL reservations, or a live Hub call. Native verification remains pending until the licensed archive is available. Compose is validated quietly to keep resolved credentials out of output.
+These checks do not simulate native installation, concurrent SQL reservations, or a live Hub call. The licensed archive is downloaded; native installation and application verification are in progress. Compose is validated quietly to keep resolved credentials out of output.
+
+## Food invitation rules
+
+The Python module [invitations.py](src/python/allfedo/invitations.py) checks a proposed food split against confirmed records. It checks remaining stock and receiving need across kitchens, changed records, collection windows, units, declared allergens, handling requirements, and source references. Unknown facts require a person to confirm them.
+
+A passing proposal still needs recipient acceptance and collection arrangements. This check does not reserve food. IRIS must recheck the current records inside the transaction that creates the holds.
 
 ## Project guide
 

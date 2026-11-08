@@ -72,9 +72,17 @@ Record project decisions, design tradeoffs, experiments, and lessons useful for 
 - **Implementation preparation:** Added licensed-image setup and native class verification. Archive/platform and private-configuration preservation checks pass; those checks are not evidence of a working native workflow. A local test email inbox is available for the first integration case.
 - **Working standard:** Review coherent responsibilities, actual failures, and screenshots at meaningful milestones. Keep the repository small and remove work that no longer serves the product.
 
-## Entry pattern
+## 2026-11-09 — Name the project Allfedo
 
-Project name chosen on 9 November 2026: **Allfedo**.
+- **Decision:** User chose **Allfedo** as the project name.
+
+## 2026-11-09 — Keep food checks separate from commitments
+
+- **Built:** One Python check validates a proposed split against confirmed food and receiving records. Fourteen host-side cases cover changed capacity across kitchens, missing food information, source references, units, and time zones.
+- **Lesson:** A good proposal is still only a proposal. The database must recheck current records while creating holds; recipient consent and a named collector remain separate commitments.
+- **Review finding:** Runtime setup must verify the running image and exact native class results. It must also keep different prerelease builds on separate data volumes. Configuration checks passed; actual native installation is still underway.
+
+## Entry pattern
 
 Use only fields that help:
 

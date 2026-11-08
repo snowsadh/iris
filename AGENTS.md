@@ -29,6 +29,7 @@ Project name: **Allfedo**.
 - Approval of the flow is not approval of its visual design. The current preview's visual style was rejected. Keep it as a disposable flow sketch; do not carry its layout, palette, or components into the final UI by default.
 - Use realistic, internationally suitable names and partner profiles. Do not default the project to Indian names, locations, or operating assumptions.
 - Design for several kitchens, shelters, offers, and collectors working at once. Keep the interface simple while handling shared capacity, changed facts, partial outcomes, and failures underneath.
+- Study Delhivery and Porter as service-design references: explain practical choices, preparation, responsibilities, and recovery. Use simple, helpful illustrations where they clarify a real action. Do not copy their business model or add decoration without a purpose.
 
 ### Engineering and self-review
 
@@ -41,6 +42,7 @@ Project name: **Allfedo**.
 
 ### Git and collaboration
 
+- Use subagents for separate parts of this project. The lead agent coordinates shared contracts, reviews changes, and owns integration and commits.
 - Commit when a sensible piece of work is complete. Do not wait for huge batches or commit every tiny edit.
 - Use short or medium commit messages in clear English. State concrete change and purpose.
 - Format commits with a short title; add a brief body only when useful.
