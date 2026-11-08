@@ -20,6 +20,7 @@
 - Use OcuPilot as a quality reference for both useful technical originality and strong execution. Aim for complete behavior, clear resources, and documentation backed by working evidence.
 - Treat professional implementation and documentation as core project work, not final polish. Evaluate the whole release: purpose, coherent behavior, setup, interface, tests, developer guidance, and honest limits.
 - For idea searches, compare the core problem, approach, narrative, and distinctive technical value across varied contest sites. The source project need not already use IRIS or meet our delivery standard; those are our implementation responsibilities. Clearly separate the original idea from proposed adaptations.
+- Check concrete IRIS and AI Hub compatibility before recommending an idea. Separate platform support, work we must build, runtime checks, and whether the result is worth building. Treat interface and demonstration quality as part of the product.
 
 ### Git and collaboration
 

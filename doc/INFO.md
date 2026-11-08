@@ -1,6 +1,6 @@
 # InterSystems contest notes
 
-Checked: **9 November 2026, 00:15 IST**. Sources include organizer replies, not just original announcement. This is just research.
+Checked: **9 November 2026**. Sources include organizer replies, not just original announcement. Runtime checks remain pending unless stated otherwise.
 
 ## 1. Task and deadline
 
@@ -126,6 +126,16 @@ Review inherited image-publishing automation before reuse; EAP image restriction
 
 Python option: `langchain-intersystems` loads named models with `init_chat_model()` and remote tools with `init_mcp_client()`. Its wheel comes from EAP portal. It reuses IRIS settings and access controls. [Python integration](https://github.com/intersystems-community/ai-hub-eap/blob/master/langchain_SDK.md).
 
+### Practical implementation checks
+
+- **Web input:** A `%CSP.REST` class can create a configured Business Service with `Ens.Director.CreateBusinessService()`. The service passes a typed message into the Production. A web endpoint writing straight to a table does not demonstrate this workflow. [REST integration](https://docs.intersystems.com/irisforhealthlatest/csp/docbook/DocBook.UI.Page.cls?KEY=EREST_business_service).
+- **Agent tools:** Extend `%AI.ToolSet`; list methods in its `XData Definition`. Typed method arguments become tool input schemas. Attach with `UseToolSet()`, create a session, then call `Chat()`. Our code must still check permissions, allowed actions, evidence, and current record version. A valid input shape does not make the decision correct. [SDK at reviewed revision](https://github.com/intersystems-community/ai-hub-eap/blob/1cca39afeb069413846c4c31196eed0b731f793a/ObjectScript_SDK_Guide.md).
+- **Long waits:** BPL can send an asynchronous request and wait with `<sync>`. IRIS saves the waiting process to disk and frees its worker. Set a timeout and handle late replies. Human Workflow uses `EnsLib.Workflow.TaskRequest` and `TaskResponse`; a polished review screen still needs our work. [BPL waiting](https://docs.intersystems.com/irislatest/csp/docbook/DocBook.UI.Page.cls?KEY=EBPL_sync), [task response](https://docs.intersystems.com/irisforhealthlatest/csp/documatic/%25CSP.Documatic.cls?CLASSNAME=EnsLib.Workflow.TaskResponse&LIBRARY=ENSLIB).
+- **Concurrent changes:** SQL transactions and a conditional `UPDATE` can check stock or record version before changing it. Check the affected-row count. Give incoming events unique IDs to reject repeats. A database commit does not make a separate web request happen exactly once; track outgoing requests and acknowledgements too. [SQL updates](https://docs.intersystems.com/irislatest/csp/docbook/DocBook.UI.Page.cls?KEY=RSQL_update).
+- **Private data:** IRIS supports row-level security, meaning different users can read different rows. This protects SQL access, not direct object/global access. Application code must check those paths. Background workers also need the original caller's verified identity; the model must not choose it. [Security limits](https://docs.intersystems.com/irislatest/csp/docbook/DocBook.UI.Page.cls?KEY=GSQL_rls).
+- **Search permissions:** Filter permitted sources before sending text to a model. A search filter chosen by the model is not an access check. Recheck access for citations, source files, logs, and exports. Hub search helpers do not automatically supply our application's permission rules. [Search guide](https://github.com/intersystems-community/ai-hub-eap/blob/1cca39afeb069413846c4c31196eed0b731f793a/ObjectScript_SDK_Advanced.md#rag-retrieval-augmented-generation).
+- **Python libraries:** Embedded Python can load installed packages, but Python version, operating system, and binary libraries must match. A separate Python service called by a Business Operation is another option. That still leaves the required agent decision in AI Hub; an outside Python service alone does not earn the Embedded Python bonus. [Package setup](https://docs.intersystems.com/irislatest/csp/docbook/DocBook.UI.Page.cls?KEY=GEPYTHON_loadlib), [runtime requirements](https://docs.intersystems.com/irislatest/csp/docbook/DocBook.UI.Page.cls?KEY=GEPYTHON_prereqs).
+
 ## 6. Two different MCP tools
 
 **Model Context Protocol (MCP)** lets AI clients discover and call tools. These projects serve different jobs.
@@ -232,5 +242,6 @@ Suggested app checks, not extra contest rules: invalid input, provider outage, b
 ## 9. Current limits and next decisions
 
 - No image downloaded, code compiled, or agent run here. Current SDK docs can describe features newer than chosen EAP build.
+- Reviewed Hub source revision `1cca39a` (6 November). Documentation support is not proof that every feature exists on either accepted image. First runtime check: compile one toolset, call one agent from a Production, wait/resume, inspect saved messages, and verify the selected Python packages.
 - Need choose useful problem, accepted image, model, and small toolset. Then verify exact classes on running image.
 - Prize pool: **$12,000** across expert, community, newcomer awards. [Prize breakdown](https://community.intersystems.com/post/intersystems-programming-contest-ai-agents-interoperability-workflows).

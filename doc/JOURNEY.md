@@ -32,6 +32,14 @@ Record project decisions, design tradeoffs, experiments, and lessons useful for 
 - **Method:** Keep original project descriptions separate from our proposed versions. Label award claims carefully. Ordered recommendations guide exploration; they do not select our project or predict prizes.
 - **Status:** No idea selected. Candidate details and source links stay in private idea notes.
 
+## 2026-11-09 — Check feasibility below the feature list
+
+- **Work:** Mapped the four candidates under review to documented IRIS services, processes, operations, agent tools, storage, and review steps. Detailed comparisons stay in private idea notes.
+- **Learning:** Database support alone does not prove an integration workflow. The agent needs a real decision, and ordinary code must enforce permissions and valid state changes.
+- **Useful limits:** SQL row-level security does not cover direct object reads. A database transaction cannot guarantee that a separate web request happens exactly once. Waiting processes can be saved and resumed instead of holding a worker open.
+- **Evidence boundary:** Read official guides and sample classes. No accepted AI Hub image is available, so native compilation and end-to-end checks remain pending.
+- **Next:** Keep idea selection open. Verify a small native workflow on the accepted image before committing to its full architecture.
+
 ## Entry pattern
 
 Use only fields that help:
