@@ -18,6 +18,7 @@
 - Separate documented behavior, actual test results, examples, and unverified assumptions.
 - When studying contest winners, compare implementation, validation, usability, presentation, and bonus points as well as idea. Include Expert and Freshmen awards; separate evidence from guesses about judges' preferences.
 - Use OcuPilot as a quality reference for both useful technical originality and strong execution. Aim for complete behavior, clear resources, and documentation backed by working evidence.
+- Treat professional implementation and documentation as core project work, not final polish. Evaluate the whole release: purpose, coherent behavior, setup, interface, tests, developer guidance, and honest limits.
 
 ### Git and collaboration
 
@@ -59,5 +60,6 @@
 - Before committing, inspect changes, check for secrets and ignored files, and run checks appropriate to change.
 - Keep each commit focused enough to explain and review.
 - Build documentation alongside working features. Link important claims to code, demonstrations, or recorded checks; distinguish planned behavior from tested behavior.
+- Reassess winner claims against the contest theme, dated source revisions, and comparable lower-ranked entries. Feature lists, badges, test counts, and repository size alone do not establish quality or judge preference.
 - Recheck changing contest rules before relying on them. Preserve dated organizer corrections.
 - If access blocks work, finish independent tasks and report exact blocker. Do not work around protected paths.

@@ -225,6 +225,8 @@ Experts also ask for a distinctive technical contribution and bonuses that serve
 
 Read past winners against their own contest theme. Contest 48 required an IRIS management interface; OcuPilot added an AI copilot to that task. Its platform focus alone does not establish a general judge preference for developer tools. [Contest 48 task](https://openexchange.intersystems.com/contest/48).
 
+**Our quality standard:** deliver a coherent app another developer can run, understand, inspect, and build on. Documentation is part of that work: quick review path, exact setup, design explanation, repeatable checks, troubleshooting, and clear limits. This is our synthesis of expert advice and repository evidence, not a disclosed judging formula. OcuPilot's [review-period developer guide](https://github.com/jbrandtmse/OcuPilot/blob/0f9cfb5718e9d308f039a9d2b4b235998610cf9e/docs/DEVELOPMENT.md) and [successful October 5 automated check](https://github.com/jbrandtmse/OcuPilot/actions/runs/37388387925) show concrete examples. Professional work can have a focused scope; file count and document length are not goals.
+
 Suggested app checks, not extra contest rules: invalid input, provider outage, bounded retries, duplicate request, rejected agent output, and human-review path. Record input, decision, tool calls, model, elapsed time, and token usage. Show live and replay modes clearly. Cost estimates need model prices and recorded usage; no measured cost yet.
 
 ## 9. Current limits and next decisions

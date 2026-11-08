@@ -17,6 +17,14 @@ Record project decisions, design tradeoffs, experiments, and lessons useful for 
 - **Design question:** For each candidate, what useful technical contribution makes it stand out and fits this contest? OcuPilot's original contest specifically asked for a new IRIS management interface; its platform focus must be read in that context.
 - **Next:** Keep comparing ideas and their technical contributions before selection. No app, architecture, or implementation chosen.
 
+## 2026-11-09 — Treat professional delivery as part of the project
+
+- **User standard:** OcuPilot feels like a serious open-source project because its implementation and documentation work together. Aim for that level of care across the finished submission.
+- **Learning:** Judge guidance asks for useful technical originality, reliable setup, a working demonstration, and clear explanations. Repository evidence helps distinguish these from feature claims.
+- **Decision:** Evaluate candidate ideas by the quality of the finished app we can deliver, as well as the problem they address. Documentation and repeatable checks belong throughout development.
+- **Limit:** Professional presentation also appears in lower-ranked entries. It is our quality target, not a proven formula for winning. No idea selected.
+- **Source:** [Expert guidance](https://community.intersystems.com/post/what-experts-look-contest-entries).
+
 ## Entry pattern
 
 Use only fields that help:
