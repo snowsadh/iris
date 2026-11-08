@@ -39,7 +39,7 @@ The following is a fictional case. Times describe partner availability, not a un
 
 ### 1. Asha counts the kitchen's surplus
 
-At City Kitchen, Asha has 80 sealed meal boxes: rice, chickpea curry, and yogurt. The kitchen confirms milk is present. The food is ready from 5:40 PM and staff can hand it over until 6:20 PM.
+At City Kitchen, Asha has 80 sealed, chilled meal boxes: rice, chickpea curry, and yogurt. The kitchen confirms milk is present and states how the boxes are being held. The food is ready from 5:40 PM and staff can hand it over until 6:20 PM.
 
 She opens **Offer food**. Saved address and entrance details are already present. She confirms:
 
@@ -51,6 +51,8 @@ She opens **Offer food**. Saved address and entrance details are already present
 For this case, the sealed boxes go into disposable carry cartons of five. Riverside's 35 boxes therefore need space for seven cartons. Containers requiring return would create another obligation; they are outside the initial case.
 
 She can paste a message to help fill a draft, but extracted values remain visible for her confirmation. Unknown information stays unknown. A photo is optional; it cannot establish ingredients or condition.
+
+The form asks for actual holding information, such as kept chilled, rather than a vague “food safety approved” checkbox. The live service must apply the network's specific rules and display any missing requirement before arranging collection.
 
 She taps **Offer 80 meal boxes**. The result says **Offer posted. No pickup confirmed yet.** Repeating the click or refreshing must recover the same offer.
 

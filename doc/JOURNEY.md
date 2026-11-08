@@ -55,6 +55,15 @@ Record project decisions, design tradeoffs, experiments, and lessons useful for 
 - **Initial design assumption, then confirmed:** User chose known kitchens and shelters with a coordinator. Partner interviews and local operating rules remain unverified.
 - **Next:** Define the complete case, screen actions, and failure handling before building the native workflow. Product behavior is planned; no live app is claimed.
 
+## 2026-11-09 — Make the food journey visible and reviewable
+
+- **Designed:** Followed a kitchen's meal-box offer through coordinator review, explicit recipient commitments, named collection, physical handoff, and receiving confirmation. Saved the complete story in [PRODUCT.md](PRODUCT.md) and screen behavior in [INTERFACE.md](INTERFACE.md).
+- **Practical lessons:** Usual shelter capacity is not today's need. Tentative transport is not a confirmed collector. A receipt count is not a claim that people were fed. Handling rules still need a real network and location.
+- **Built for review:** A local [interface preview](../design/README.md) with fictional partners, a full case, and selected failure paths. It uses no live messaging, authentication, model, or native IRIS runtime.
+- **Review finding:** An outdated transport warning stayed visible after acceptance. Changed the next-action panel to follow current state and responsibility. Also made receipt shortfalls and withdrawn quantities remain visible rather than disappearing into a success state.
+- **Verification:** Browser checks passed for the complete local case and selected failure paths, including a mobile receipt. Inspected desktop/mobile screenshots. The preview is served locally from its own directory; no private research notes are served.
+- **Next:** Review this product flow, then implement and verify the native integration, actual partner communication, and operational rules. A clickable example is not a submitted service or field validation.
+
 ## Entry pattern
 
 Use only fields that help:

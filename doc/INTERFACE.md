@@ -26,7 +26,7 @@ What is available?
 Number of meal boxes [80]
 Ready from [5:40 PM]   Collect by [6:20 PM]
 Ingredients / allergens [Contains milk ]
-Handling details [network-required data]
+Holding [Kept chilled] · Packaging: sealed boxes
 
 Pickup: rear entrance · Asha on site
 [Change pickup details]
@@ -134,3 +134,14 @@ Give someone only the screen. Can they identify the food, available quantity, re
 Walk through posting, split requests, accepting fewer, expiry, pickup, receipt, and one discrepancy. Every visible state must explain the next step. A complete receipt must be traceable to the original offer without treating a notification or suggestion as physical evidence.
 
 Any clickable preview uses fictional local data. It does not demonstrate live messaging, real food movement, authentication, or an AI Hub run. Production accounts will be scoped to the person's organization; switching roles belongs only in the preview controls.
+
+## Current preview and review findings
+
+[Open the preview](../design/food-rescue.html); [walkthrough and checks](../design/README.md).
+
+- The connected local case runs from an 80-box offer through separate requests, acceptances, kitchen handoffs, and receiving confirmations.
+- Partial acceptance, reply expiry, collection help, and a short receipt have working preview paths. Other failures in the product plan remain implementation work.
+- Screen review exposed an old collection warning surviving after acceptance. The next-action panel now follows current case state and names the person who must act.
+- Received quantity is labeled separately from collected, withdrawn, returned, and reported-damaged quantities. A resolved discrepancy cannot inflate the receipt count.
+- Browser checks and desktop/mobile visual review apply only to this preview. No native workflow, food-policy validation, live messaging, or field usability trial has been completed.
+- Checked on 9 November in Chromium: the complete case, partial quantities, stock-limit rejection, expired replies, collection help, short receipts, and refresh recovery passed. Also completed a mobile receipt flow at 390 pixels wide; desktop and mobile screenshots were visually inspected. These are local interface checks, not server concurrency or field tests.
