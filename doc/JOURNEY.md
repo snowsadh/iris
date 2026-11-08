@@ -52,7 +52,7 @@ Record project decisions, design tradeoffs, experiments, and lessons useful for 
 - **Decision:** User selected food rescue. Other candidates remain private references.
 - **Product standard:** Start with a person's actual situation and follow the work through input, decisions, commitments, physical action, confirmation, and recovery. The interface must make sense without hearing the pitch.
 - **Important distinction:** A suggested recipient is not a reservation. A reservation is not collection. Collection is not confirmed receipt. Each step needs a responsible person and visible evidence.
-- **Initial design assumption:** A local rescue team works with known kitchens and receiving organizations. This setting is proposed, not yet confirmed by the user or interviews.
+- **Initial design assumption, then confirmed:** User chose known kitchens and shelters with a coordinator. Partner interviews and local operating rules remain unverified.
 - **Next:** Define the complete case, screen actions, and failure handling before building the native workflow. Product behavior is planned; no live app is claimed.
 
 ## Entry pattern

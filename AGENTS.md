@@ -51,6 +51,7 @@
 - Keep `doc/IDEA.md` ignored by Git. Preserve the root ignore rule for older local copies.
 - Use it for contest and idea research as requested. Record sources, uncertainties, and candidate ideas; do not treat candidates as user's chosen project.
 - Food rescue is selected. User explicitly locked this direction on 9 November 2026. Conflict-aware memory and other candidates remain research references, not parallel project directions.
+- First setting: known kitchens and shelters, with a coordinator. Design around real partner contacts, today's needs, named collection, and confirmed receipt.
 - Keep unselected idea research private. The selected food-rescue product plan and implementation may be documented in tracked project files as requested.
 
 ### Meko restrictions
