@@ -21,6 +21,9 @@
 - Treat professional implementation and documentation as core project work, not final polish. Evaluate the whole release: purpose, coherent behavior, setup, interface, tests, developer guidance, and honest limits.
 - For idea searches, compare the core problem, approach, narrative, and distinctive technical value across varied contest sites. The source project need not already use IRIS or meet our delivery standard; those are our implementation responsibilities. Clearly separate the original idea from proposed adaptations.
 - Check concrete IRIS and AI Hub compatibility before recommending an idea. Separate platform support, work we must build, runtime checks, and whether the result is worth building. Treat interface and demonstration quality as part of the product.
+- Start product design from the person's real situation. Explain what they know, what they enter, who acts next, what changes outside the app, and what happens when that step fails.
+- Make each screen understandable without the pitch. Use concrete labels, meaningful actions, and visible outcomes. Avoid vague AI activity, disconnected features, and developer language in normal user flows.
+- Treat physical handoffs, responsibility, and failure handling as core design. Never turn a suggestion or sent notification into a confirmed real-world outcome.
 
 ### Git and collaboration
 
@@ -47,8 +50,8 @@
 
 - Keep `doc/IDEA.md` ignored by Git. Preserve the root ignore rule for older local copies.
 - Use it for contest and idea research as requested. Record sources, uncertainties, and candidate ideas; do not treat candidates as user's chosen project.
-- No idea is selected yet. Interest in a candidate is not a decision; wait for explicit selection before calling it our project or working direction.
-- Do not copy its contents into tracked files or public issues/PRs without user's instruction.
+- Food rescue is selected. User explicitly locked this direction on 9 November 2026. Conflict-aware memory and other candidates remain research references, not parallel project directions.
+- Keep unselected idea research private. The selected food-rescue product plan and implementation may be documented in tracked project files as requested.
 
 ### Meko restrictions
 

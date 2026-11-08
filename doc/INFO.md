@@ -245,5 +245,5 @@ Suggested app checks, not extra contest rules: invalid input, provider outage, b
 
 - No image downloaded, code compiled, or agent run here. Current SDK docs can describe features newer than chosen EAP build.
 - Reviewed Hub source revision `1cca39a` (6 November). Documentation support is not proof that every feature exists on either accepted image. First runtime check: compile one toolset, call one agent from a Production, wait/resume, inspect saved messages, and verify the selected Python packages.
-- Need choose useful problem, accepted image, model, and small toolset. Then verify exact classes on running image.
+- Food rescue is selected. Define the complete user journey and screen behavior; then choose the accepted image, model, and small toolset and verify exact classes on the running image.
 - Prize pool: **$12,000** across expert, community, newcomer awards. [Prize breakdown](https://community.intersystems.com/post/intersystems-programming-contest-ai-agents-interoperability-workflows).
