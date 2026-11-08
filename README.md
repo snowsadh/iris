@@ -1,6 +1,6 @@
-# Food rescue
+# Allfedo
 
-Help known kitchens and shelters turn surplus food into agreed pickups and confirmed receipts, with a coordinator handling unresolved work.
+Allfedo helps known kitchens and shelters turn surplus food into agreed pickups and confirmed receipts, with a coordinator handling unresolved work.
 
 **Current stage: product and technical design.** No live food-rescue service or IRIS workflow has been implemented. The flow sketch's visual design was rejected; it is not the final interface. Example partners and quantities are fictional.
 

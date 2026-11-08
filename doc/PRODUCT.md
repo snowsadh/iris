@@ -1,4 +1,4 @@
-# Food rescue: the complete product story
+# Allfedo: the complete product story
 
 Status: proposed behavior, not a working service. Food rescue and a network of known kitchens and shelters with a coordinator are selected. Interviews, local handling rules, and live integration checks remain ahead.
 

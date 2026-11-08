@@ -1,5 +1,7 @@
 # Project instructions
 
+Project name: **Allfedo**.
+
 ## Keep this file current
 
 - Follow these instructions throughout this project.

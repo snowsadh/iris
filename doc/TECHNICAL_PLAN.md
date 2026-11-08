@@ -1,4 +1,4 @@
-# Food rescue: implementation plan
+# Allfedo: implementation plan
 
 Status: design decisions and verification work, not a running backend. The old browser sketch explains one case only. Its visual direction was rejected and must not become the production UI by default.
 

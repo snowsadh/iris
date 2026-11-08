@@ -74,6 +74,8 @@ Record project decisions, design tradeoffs, experiments, and lessons useful for 
 
 ## Entry pattern
 
+Project name chosen on 9 November 2026: **Allfedo**.
+
 Use only fields that help:
 
 - **Date and event:** What changed?

@@ -1,4 +1,4 @@
-# Food rescue: experience brief
+# Allfedo: experience brief
 
 The first sketch's visual design was rejected. Its one-off simulation is not the foundation for the app. Keep the useful agreement flow in [PRODUCT.md](PRODUCT.md); build the real states described in [TECHNICAL_PLAN.md](TECHNICAL_PLAN.md).
 
