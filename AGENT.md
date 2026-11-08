@@ -22,6 +22,7 @@
 - Commit when a sensible piece of work is complete. Do not wait for huge batches or commit every tiny edit.
 - Use short or medium commit messages in clear English. State concrete change and purpose.
 - Format commits with a short title; add a brief body only when useful.
+- After committing, show user commit hash and exact commit message, including body if present.
 - Example title: `docs: record project workflow and learning journal`.
 - Use branches, issues, and pull requests when they help organize real work or teach repository collaboration.
 - Explain briefly why a branch, issue, or pull request exists. Do not create busywork.
@@ -29,10 +30,13 @@
 
 ### Project journal
 
-- Update `docs/JOURNEY.md` when we make meaningful decisions, encounter blockers, learn something useful, or reach milestones.
+- Update `docs/JOURNEY.md` for project decisions, design tradeoffs, experiments, useful findings, and milestones.
+- Include problems only when they teach something about our app, InterSystems, or contest requirements.
+- Exclude assistant access, sandbox permissions, Git setup, and routine workflow housekeeping. Keep working instructions here.
 - Record date, what happened, why it matters, and next step. Add source or commit links when available.
 - Keep history truthful. Do not invent experiments, outcomes, or user decisions.
 - Preserve enough context for future articles and videos. Skip routine edit-by-edit narration.
+- Before adding entry, ask whether it helps write about project, revisit learning, or recover project context. Otherwise skip it.
 
 ### Idea notes
 
