@@ -67,6 +67,16 @@ Choose typography, spacing, hierarchy, and color deliberately. Use meaningful st
 
 The useful visual signature comes from physical quantities, time windows, and named commitments. It should not depend on generic AI motifs or decorative cards.
 
+## Learn from experienced services
+
+References reviewed on 9 November 2026: [Delhivery](https://www.delhivery.com/) and [Porter's Delhi truck page](https://porter.in/trucks/delhi).
+
+Delhivery gives returning users a tracking entry and separates audiences and services. For Allfedo, a kitchen should find its existing offer; a collector should open the assigned pickup. Each role needs an obvious starting action and a visible support route.
+
+Porter pairs vehicle drawings with dimensions and carrying limits. Its booking guidance names the receiver and optional stops; its breakdown guidance explains who helps arrange alternative transport. For Allfedo, show what must fit, who loads and receives it, which entrance to use, and who handles a failed collection. Meal boxes, carry cartons, and vehicle capacity are different facts.
+
+Use a simple illustration beside the choice it explains, with a readable text equivalent. Never let a drawing imply an unconfirmed load size, available driver, or completed handoff. These public pages guide our service explanation; they do not prove either company's internal dispatch design.
+
 ## Review before treating a screen as ready
 
 Walk through offers competing for one need, an unavailable collector, a kitchen shortfall, stale review, an undelivered invitation, a late pickup, and a partial receipt. Follow each action to its saved state, next owner, and physical consequence.

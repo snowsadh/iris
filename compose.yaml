@@ -1,13 +1,27 @@
 name: food-rescue
 
 services:
+  iris-data-init:
+    image: food-rescue/iris-aihub:2027.1.0AI.109.0
+    pull_policy: never
+    user: root
+    entrypoint: ["/bin/sh"]
+    command: ["-c", "chown irisowner:irisowner /durable"]
+    restart: "no"
+    volumes:
+      - iris-data:/durable
+
   iris:
     image: food-rescue/iris-aihub:2027.1.0AI.109.0
     pull_policy: never
     restart: unless-stopped
     shm_size: 1gb
+    depends_on:
+      iris-data-init:
+        condition: service_completed_successfully
     environment:
       ISC_DATA_DIRECTORY: /durable/iris
+      PYTHONPATH: /opt/allfedo/python:/usr/irissys/lib/python:/usr/irissys/mgr/python
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4.1-mini}
     ports:

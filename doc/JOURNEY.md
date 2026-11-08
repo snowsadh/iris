@@ -82,6 +82,14 @@ Record project decisions, design tradeoffs, experiments, and lessons useful for 
 - **Lesson:** A good proposal is still only a proposal. The database must recheck current records while creating holds; recipient consent and a named collector remain separate commitments.
 - **Review finding:** Runtime setup must verify the running image and exact native class results. It must also keep different prerelease builds on separate data volumes. Configuration checks passed; actual native installation is still underway.
 
+## 2026-11-09 — Prove the native decision and shared commitments
+
+- **Built and tested:** The actual AI Hub Community 109 image runs Allfedo's saved commands and Embedded Python checks. Two real IRIS processes competed for shared food and receiving need; only one conflicting request succeeded. A request also recovered after a temporary lock using the same request ID.
+- **Decision:** Planning and sending are separate. A live OpenAI proposal passed through the native Production with no food held. Only the later coordinator send saved a hold and notification intention. Test emails reached Mailpit; these are not real partner replies.
+- **Review lesson:** Passing compilation missed a wrongly quoted property in the agent path. The behavior check caught it. Existing Production workers also retained earlier loaded code until restarted. Recompile, restart the relevant workers, then test the behavior.
+- **Experience lesson:** Delhivery and Porter explain concrete service choices and recovery. Our interface should explain loads, contacts, entrances, and custody where people need them, using useful illustrations instead of decorative AI activity.
+- **Remaining:** Signed-in screens, complete shortage/custody recovery, richer partner facts, full end-to-end checks, and release documentation. No operational or contest submission success claimed.
+
 ## Entry pattern
 
 Use only fields that help:

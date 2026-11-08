@@ -45,7 +45,7 @@ AI Hub comes through **Early Access Program (EAP)**. It is prerelease software; 
 - Replay allowed alongside live mode; static replay earns no online-demo bonus.
 - Approval can remain pending at deadline; submit working entry on time.
 
-These come from [organizer replies](https://community.intersystems.com/post/intersystems-programming-contest-ai-agents-interoperability-workflows). Portal download availability not independently verified; [portal](https://evaluation.intersystems.com/Eval/early-access/AIHub) inaccessible through research tools.
+These come from [organizer replies](https://community.intersystems.com/post/intersystems-programming-contest-ai-agents-interoperability-workflows). On 9 November we downloaded the actual x64 Community archive from the signed-in [portal](https://evaluation.intersystems.com/Eval/early-access/AIHub). Installed version reports `2027.1.0AI (Build 109U)`; `%AI.Agent`, `%AI.Provider`, and `%AI.ToolSet` exist. Embedded Python reports 3.12.3. Application compilation, native capacity tests, a Production-based OpenAI proposal, and local SMTP delivery have now passed. Browser access and full recovery are separate checks.
 
 **Setup pattern**, after downloading matching archive:
 

@@ -2,7 +2,7 @@
 
 Allfedo helps known kitchens and shelters turn surplus food into agreed pickups and confirmed receipts, with a coordinator handling unresolved work.
 
-**Current stage: product and technical design.** No live food-rescue service or IRIS workflow has been implemented. The flow sketch's visual design was rejected; it is not the final interface. Example partners and quantities are fictional.
+**Current stage: working native core; full application in progress.** The food rules, saved commands, AI Hub decision, explicit coordinator send, collection records, and local test email have run on the actual contest image. Signed-in screens and complete recovery paths are still being built. Test partners and quantities are fictional; this is not a field-validated food service.
 
 ## Local runtime setup
 
@@ -11,10 +11,12 @@ Requires Docker with Compose and Python 3.10+. Download an accepted AI Hub Commu
 Create `.env` from [.env.example](.env.example) if it does not already exist. Put the OpenAI key there locally. Existing credentials must be preserved.
 
 ```bash
-python3 scripts/iris_runtime.py /path/to/iris-community-2027.1.0AI.109.0-docker.tar.gz
+python3 scripts/iris_runtime.py /path/to/iris-community-2027.1.0AI.109.0-docker.tar.gz --setup
 ```
 
-The installer checks the archive's build/platform, loads and tags it locally, preserves private settings, starts IRIS and a test email inbox, and checks the actual IRIS version and compiled Hub classes. An ignored `compose.override.yaml` selects the installed image and a separate data volume per build. This prevents a build change from silently upgrading an incompatible database. It does not configure or claim a working application or model call.
+The installer checks the archive's build/platform, loads and tags it locally, preserves private settings, and starts IRIS and a test email inbox. It verifies the running image, native version and AI Hub classes. An ignored `compose.override.yaml` selects the image and a separate data volume per build. A short initialization step prepares volume ownership; IRIS itself runs as its normal user.
+
+`--setup` creates the isolated `ALLFEDO` application namespace and compiles the source. It does not start the integration workflow, create partner accounts, or make a model call. To compile changes on the installed runtime, use `python3 scripts/iris_runtime.py --setup`; stop the running Production before updating its classes and start it afterward, as explained in the [native guide](tests/native/README.md).
 
 Local developer endpoints after successful startup:
 
@@ -28,15 +30,26 @@ Repeat the archive and configuration checks:
 ```bash
 python3 -m unittest discover -s tests -v
 docker compose config --quiet
+python3 scripts/iris_runtime.py --test
 ```
 
-These checks do not simulate native installation, concurrent SQL reservations, or a live Hub call. The licensed archive is downloaded; native installation and application verification are in progress. Compose is validated quietly to keep resolved credentials out of output.
+The first checks cover host-side rules and installer contracts. `--test` runs real IRIS commands, two-process shared-capacity checks, and retry recovery after a temporary lock. It creates separate synthetic networks and keeps their records for inspection. It makes no model call. Compose is validated quietly to keep resolved credentials out of output.
+
+## Native workflow
+
+IRIS runs the integration workflow, called a **Production**. A signed-in partner command enters a Business Service. A Business Process routes it to the native AI Hub agent or the saved food-rescue commands. The agent reads only the authorized case and can submit a proposal or ask for review. It cannot reserve food or approve a pickup.
+
+The coordinator sends a separate reviewed plan. IRIS rechecks current food and receiving capacity inside one transaction, saves temporary holds, and queues notification intentions. Recipient acceptance, assigned collection, physical kitchen handoff, and receiving confirmation remain separate events.
+
+Verified on **AI Hub Community `2027.1.0AI.109.0`**, with **Python 3.12.3** inside IRIS. A live `gpt-4.1-mini` proposal passed through the Production, stayed unreserved until the explicit send, and then created a guarded hold. Actual SMTP messages reached the local Mailpit inbox. These checks establish integration behavior, not model quality or real-world rescue outcomes.
 
 ## Food invitation rules
 
 The Python module [invitations.py](src/python/allfedo/invitations.py) checks a proposed food split against confirmed records. It checks remaining stock and receiving need across kitchens, changed records, collection windows, units, declared allergens, handling requirements, and source references. Unknown facts require a person to confirm them.
 
 A passing proposal still needs recipient acceptance and collection arrangements. This check does not reserve food. IRIS must recheck the current records inside the transaction that creates the holds.
+
+The current native release accepts whole meal boxes only. It does not infer vehicle fit or travel time. Stock changes pause further promises; complete shortage and custody resolution, richer partner details, and the browser experience remain release work.
 
 ## Project guide
 

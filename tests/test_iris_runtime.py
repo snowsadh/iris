@@ -3,7 +3,9 @@
 import importlib.util
 import io
 import json
+import os
 from pathlib import Path
+import shutil
 import subprocess
 import tarfile
 import tempfile
@@ -64,7 +66,8 @@ class RuntimeSetupTests(unittest.TestCase):
             image = f"food-rescue/iris-aihub:{build}"
             runtime.write_runtime_override(override, image, build)
             settings = json.loads(override.read_text())
-            self.assertEqual(settings["services"]["iris"]["image"], image)
+            for service in ("iris", "iris-data-init"):
+                self.assertEqual(settings["services"][service]["image"], image)
             self.assertNotIn("${", override.read_text())
             names.append(settings["volumes"]["iris-data"]["name"])
             self.assertEqual(env.read_bytes(), private_settings)
@@ -89,6 +92,34 @@ class RuntimeSetupTests(unittest.TestCase):
                 runtime.write_runtime_override(override, "food-rescue/iris-aihub:2027.1.0AI.109.0", "2027.1.0AI.109.0")
         self.assertEqual(override.read_bytes(), previous)
         self.assertEqual(list(self.root.iterdir()), [override])
+
+    @unittest.skipUnless(shutil.which("docker"), "Docker Compose checks the deployment configuration.")
+    def test_compose_initializes_only_its_volume_before_starting_unprivileged_iris(self):
+        base, override, settings = (self.root / name for name in ("compose.yaml", "compose.override.yaml", "empty.env"))
+        base.write_text((runtime.PROJECT / "compose.yaml").read_text())
+        settings.write_text("")
+        image = "food-rescue/iris-aihub:2027.1.0AI.109.0"
+        runtime.write_runtime_override(override, image, "2027.1.0AI.109.0")
+        result = subprocess.run(
+            ["docker", "compose", "--file", str(base), "--file", str(override),
+             "--env-file", str(settings), "config", "--format", "json"],
+            cwd=self.root, env={"PATH": os.environ["PATH"], "IRIS_IMAGE": "stale-exported:image",
+                                "COMPOSE_FILE": "missing-foreign.yaml"},
+            check=True, capture_output=True, text=True, timeout=15,
+        )
+        merged = json.loads(result.stdout)
+        init, iris = (merged["services"][name] for name in ("iris-data-init", "iris"))
+        self.assertEqual(init["image"], image)
+        self.assertEqual(iris["image"], image)
+        self.assertEqual(init["pull_policy"], "never")
+        self.assertEqual(init["user"], "root")
+        self.assertNotIn("user", iris)
+        self.assertEqual(init["entrypoint"], ["/bin/sh"])
+        self.assertEqual(init["command"], ["-c", "chown irisowner:irisowner /durable"])
+        self.assertEqual([(mount["source"], mount["target"]) for mount in init["volumes"]], [("iris-data", "/durable")])
+        self.assertEqual(iris["depends_on"]["iris-data-init"]["condition"], "service_completed_successfully")
+        self.assertEqual(merged["volumes"]["iris-data"]["name"], "allfedo-iris-2027.1.0AI.109.0")
+        self.assertEqual(iris["environment"]["PYTHONPATH"], "/opt/allfedo/python:/usr/irissys/lib/python:/usr/irissys/mgr/python")
 
 
 class NativeProbeContractTests(unittest.TestCase):

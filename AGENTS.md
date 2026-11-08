@@ -39,6 +39,8 @@ Project name: **Allfedo**.
 - Review your own work at each meaningful milestone and before committing. Challenge assumptions, exercise failure paths, inspect actual screens, and fix weaknesses rather than documenting them away.
 - Aim for a useful real service and an intentional visual design. Do not accept a single generated layout, a hardcoded demonstration, passing tests, or a long feature list as proof of product quality.
 - Continue independent authorized work while the user is away. Ask only for genuinely missing access or decisions, and report exactly what has been verified.
+- Finish the complete app, end-to-end checks, documentation, and required deliverables before optional bonuses. Prepare clear demo-video and manual-test directions for the user. Continue until the agreed work is genuinely complete; do not stop at a partial foundation.
+- Keep backend design as simple as correctness allows. Give interface quality and the complete user experience the same attention as technical reliability. Recheck both as the codebase changes.
 
 ### Git and collaboration
 

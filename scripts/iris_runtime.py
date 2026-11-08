@@ -83,7 +83,7 @@ def write_runtime_override(path: Path, image: str, build: str) -> None:
             raise ValueError("A foreign compose.override.yaml exists; keep it safe and move it before installing.")
     override = {
         "x-allfedo-runtime": marker,
-        "services": {"iris": {"image": image}},
+        "services": {"iris": {"image": image}, "iris-data-init": {"image": image}},
         "volumes": {"iris-data": {"name": f"allfedo-iris-{build}"}},
     }
     temporary = None
@@ -180,12 +180,81 @@ def install(archive: Path) -> None:
     print("Native AI Hub classes found. No model call or application workflow has run yet.")
 
 
+def _verify_selected_runtime() -> str:
+    """Require this installer's selected image and the matching running native build."""
+    selection = json.loads((PROJECT / "compose.override.yaml").read_text())
+    if selection.get("x-allfedo-runtime") != {"generator": "allfedo.iris_runtime", "schema": 1}:
+        raise ValueError("Run the archive installer before application setup.")
+    image = selection.get("services", {}).get("iris", {}).get("image", "")
+    build = image.removeprefix("food-rescue/iris-aihub:")
+    if build not in SUPPORTED_BUILDS or image != f"food-rescue/iris-aihub:{build}":
+        raise ValueError("Application setup requires a selected accepted AI Hub image.")
+    loaded = subprocess.run(["docker", "image", "inspect", "--format", "{{.Id}}", image],
+                            check=True, capture_output=True, text=True, timeout=15)
+    return verify_native(build, loaded.stdout.strip())
+
+
+def configure_application() -> None:
+    """Create the isolated application namespace and compile the mounted source."""
+    _verify_selected_runtime()
+    subprocess.run(_compose_command("cp", str(PROJECT / "scripts" / "namespace.cpf"),
+                                    "iris:/tmp/allfedo-namespace.cpf"), cwd=PROJECT, check=True)
+    subprocess.run(_compose_command("exec", "-T", "iris", "iris", "merge", "IRIS",
+                                    "/tmp/allfedo-namespace.cpf"), cwd=PROJECT, check=True, timeout=120)
+    commands = '''Set sc=$SYSTEM.OBJ.LoadDir("/opt/allfedo/Allfedo","ck",,1)
+If 'sc Do $SYSTEM.Status.DisplayError(sc)
+Write !,"ALLFEDO_COMPILED=",(sc=1),!
+Halt
+'''
+    result = subprocess.run(_compose_command("exec", "-T", "iris", "iris", "session", "IRIS", "-U", "ALLFEDO"),
+                            cwd=PROJECT, input=commands, text=True, capture_output=True, timeout=120)
+    if result.returncode != 0 or "ALLFEDO_COMPILED=1" not in result.stdout.splitlines():
+        print(result.stdout, end="")
+        raise RuntimeError("Application compilation did not succeed. Review the compiler messages above.")
+    print("Allfedo compiled in ALLFEDO. Production startup, web access, and model calls are separate checks.")
+
+
+def test_application() -> None:
+    """Run real native command and two-process capacity checks without model calls."""
+    _verify_selected_runtime()
+    subprocess.run(_compose_command("cp", str(PROJECT / "tests" / "native" / "AllfedoScenario.cls"),
+                                    "iris:/tmp/AllfedoScenario.cls"), cwd=PROJECT, check=True)
+    commands = '''Set sc=$SYSTEM.OBJ.Load("/tmp/AllfedoScenario.cls","ck")
+If 'sc Do $SYSTEM.Status.DisplayError(sc)
+If sc { Set result=##class(AllfedoScenario).TestCommands() Write !,"ALLFEDO_COMMANDS=",result.%ToJSON(),! }
+If sc { Set result=##class(AllfedoScenario).TestRaces() Write !,"ALLFEDO_RACES=",result.%ToJSON(),! }
+If sc { Set result=##class(AllfedoScenario).TestBusyRecovery() Write !,"ALLFEDO_BUSY=",result.%ToJSON(),! }
+Halt
+'''
+    result = subprocess.run(_compose_command("exec", "-T", "iris", "iris", "session", "IRIS", "-U", "ALLFEDO"),
+                            cwd=PROJECT, input=commands, text=True, capture_output=True, timeout=90)
+    checks = {}
+    for line in result.stdout.splitlines():
+        for name in ("COMMANDS", "RACES", "BUSY"):
+            prefix = f"ALLFEDO_{name}="
+            if line.startswith(prefix):
+                checks[name] = json.loads(line.removeprefix(prefix))
+    if result.returncode != 0 or any(checks.get(name, {}).get("ok") is not True for name in ("COMMANDS", "RACES", "BUSY")):
+        print(result.stdout, end="")
+        raise RuntimeError("Native command or shared-capacity checks did not pass.")
+    print("Native commands, concurrent shared capacity, and lock retry recovery passed. No model call was made.")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("archive", type=Path, help="AI Hub Community Docker .tar.gz downloaded from the official portal")
+    parser.add_argument("archive", type=Path, nargs="?", help="AI Hub Community Docker .tar.gz downloaded from the official portal")
+    parser.add_argument("--setup", action="store_true", help="Create ALLFEDO and compile source after installing, or on the running selected runtime")
+    parser.add_argument("--test", action="store_true", help="Run native command and capacity checks; creates isolated synthetic records, no model call")
     args = parser.parse_args()
+    if args.archive is None and not args.setup and not args.test:
+        parser.error("Supply a vendor archive, --setup, or --test.")
     try:
-        install(args.archive)
+        if args.archive is not None:
+            install(args.archive)
+        if args.setup:
+            configure_application()
+        if args.test:
+            test_application()
     except (OSError, ValueError, RuntimeError, tarfile.TarError,
             subprocess.CalledProcessError, subprocess.TimeoutExpired) as error:
         parser.exit(1, f"Installation not complete: {error}\n")

@@ -1,0 +1,4 @@
+[Actions]
+CreateResource:Name=%DB_ALLFEDO,Description="Allfedo application database"
+CreateDatabase:Name=ALLFEDO,Directory=/durable/iris/mgr/allfedo,Resource=%DB_ALLFEDO
+CreateNamespace:Name=ALLFEDO,Globals=ALLFEDO,Routines=ALLFEDO,Interop=1

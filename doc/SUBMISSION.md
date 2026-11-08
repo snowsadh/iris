@@ -1,11 +1,11 @@
 # Contest 49: submission checklist
 
-Checked 9 November 2026. No app has been built or tested yet. Boxes below are work to complete, not claims of progress.
+Checked 9 November 2026. The native core is running and tested; the complete app and submission are still in progress. Check a box only when its full requirement is met.
 
 ## Required
 
 - [ ] Confirm participant eligibility and create Community / Open Exchange accounts. Add team profile links if entering as a team.
-- [ ] Load an accepted AI Hub Community Docker image. Build 2027.1.0AI.109.0 is accepted; declare the exact build. Document image loading and `docker compose up`. Do not publish the proprietary image.
+- [x] Load an accepted AI Hub Community Docker image. Actual build `2027.1.0AI.109.0` is running; [README](../README.md) covers loading, startup and native checks. The proprietary image stays local.
 - [ ] Build an original, functional IRIS Interoperability workflow. Its AI Hub agent must make a real decision that changes the workflow's next step.
 - [ ] Publish source on GitHub or GitLab under an open-source license. Credit reused work.
 - [ ] Write an English README with installation steps and either a video or a clear description of how the app works. Include dependencies, sample input, provider-key setup, and expected output.
