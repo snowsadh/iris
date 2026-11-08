@@ -27,7 +27,7 @@ EST means Eastern Standard Time, UTC−5. IST means India Standard Time, UTC+5:3
 - Synthetic data and AI assistants allowed; disclosure optional.
 - Newcomer award: at most five prior contests; no prior top-three expert/community finish.
 
-Judges assess technical depth, setup clarity, developer experience, usefulness, and ease of use. Approval decisions final. [Entry requirements](https://openexchange.intersystems.com/contest/49), [organizer clarifications](https://community.intersystems.com/post/intersystems-programming-contest-ai-agents-interoperability-workflows).
+Published judging criteria: **Complexity, Clarity of Instructions, Developer Experience, Applicability, Usability**. In plain English: technical work, clear setup, ease of building with it, usefulness, and ease of use. The page gives no numerical weights. Review decisions final. [Entry requirements](https://openexchange.intersystems.com/contest/49), [organizer clarifications](https://community.intersystems.com/post/intersystems-programming-contest-ai-agents-interoperability-workflows).
 
 General terms also require local age of majority and minimum age 16. Location/export restrictions apply, including Quebec, Crimea, Iran, North Korea, and Syria. Identity checks and tax paperwork may be required. Requested eligibility proof: within 10 days; tax documents: within 7 days or sooner where required. Contest-specific rules take priority over general terms. Read [full terms](https://openexchange.intersystems.com/markdown?url=/assets/doc/contest-terms.md) before entering.
 
@@ -220,6 +220,8 @@ Conditions:
 3. Test README from clean setup. Include sample input, expected result, exact build, model/key settings, and visible agent decision.
 4. Put best evidence near README top: task fit, useful technical choice, demo, and relevant code. Link proof beside each bonus claim.
 5. Keep hosted demo available during review. Article can explain build experience and failures. [Judges' advice](https://community.intersystems.com/post/what-experts-look-contest-entries).
+
+Experts also ask for a distinctive technical contribution and bonuses that serve the app. They explicitly say innovation need not mean complexity. This is advice, not a weighted scoring formula. [Expert guidance](https://community.intersystems.com/post/what-experts-look-contest-entries).
 
 Suggested app checks, not extra contest rules: invalid input, provider outage, bounded retries, duplicate request, rejected agent output, and human-review path. Record input, decision, tool calls, model, elapsed time, and token usage. Show live and replay modes clearly. Cost estimates need model prices and recorded usage; no measured cost yet.
 

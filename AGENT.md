@@ -16,6 +16,7 @@
 - Explain where tools, models, and decisions came from; what was reused; and what changed.
 - Read contest requirements and relevant tool documentation carefully. Keep verified findings and source links in `doc/INFO.md`.
 - Separate documented behavior, actual test results, examples, and unverified assumptions.
+- When studying contest winners, compare implementation, validation, usability, presentation, and bonus points as well as idea. Include Expert and Freshmen awards; separate evidence from guesses about judges' preferences.
 
 ### Git and collaboration
 
@@ -41,7 +42,7 @@
 ### Idea notes
 
 - Keep root `IDEA.md` ignored by Git.
-- Leave it ready for user's next instructions; do not invent project idea now.
+- Use it for contest and idea research as requested. Record sources, uncertainties, and candidate ideas; do not treat candidates as user's chosen project.
 - Do not copy its contents into tracked files or public issues/PRs without user's instruction.
 
 ### Meko restrictions
