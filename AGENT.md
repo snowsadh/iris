@@ -1,0 +1,55 @@
+# Project instructions
+
+## Keep this file current
+
+- Follow these instructions throughout this project.
+- Add lasting user instructions when given. Update old instructions when user changes them.
+- Add useful project habits when evidence supports them. Label agent-added habits separately.
+- Keep instructions short. Put research in `doc/INFO.md` and project history in `docs/JOURNEY.md`.
+
+## User instructions
+
+### Communication and research
+
+- Use simple English and short, readable sentences. Keep caveman style without losing clarity.
+- Explain unfamiliar terms before using them. Teach through concrete examples.
+- Explain where tools, models, and decisions came from; what was reused; and what changed.
+- Read contest requirements and relevant tool documentation carefully. Keep verified findings and source links in `doc/INFO.md`.
+- Separate documented behavior, actual test results, examples, and unverified assumptions.
+
+### Git and collaboration
+
+- Commit when a sensible piece of work is complete. Do not wait for huge batches or commit every tiny edit.
+- Use short or medium commit messages in clear English. State concrete change and purpose.
+- Format commits with a short title; add a brief body only when useful.
+- Example title: `docs: record project workflow and learning journal`.
+- Use branches, issues, and pull requests when they help organize real work or teach repository collaboration.
+- Explain briefly why a branch, issue, or pull request exists. Do not create busywork.
+- Never claim a commit, push, issue, or pull request succeeded without checking its result.
+
+### Project journal
+
+- Update `docs/JOURNEY.md` when we make meaningful decisions, encounter blockers, learn something useful, or reach milestones.
+- Record date, what happened, why it matters, and next step. Add source or commit links when available.
+- Keep history truthful. Do not invent experiments, outcomes, or user decisions.
+- Preserve enough context for future articles and videos. Skip routine edit-by-edit narration.
+
+### Idea notes
+
+- Keep root `IDEA.md` ignored by Git.
+- Leave it ready for user's next instructions; do not invent project idea now.
+- Do not copy its contents into tracked files or public issues/PRs without user's instruction.
+
+### Meko restrictions
+
+- Use Meko only with explicit user or approved-project authorization and exact authorized `datapack_id` on every call.
+- Never access `meko_default_datapack` or assume a missing datapack argument.
+- No automatic memory searches, capture, writes, queue replay, repair, or reinstallation.
+
+## Agent-added working habits
+
+- Prefer smallest useful implementation. Add dependencies and complexity only for a clear need.
+- Before committing, inspect changes, check for secrets and ignored files, and run checks appropriate to change.
+- Keep each commit focused enough to explain and review.
+- Recheck changing contest rules before relying on them. Preserve dated organizer corrections.
+- If access blocks work, finish independent tasks and report exact blocker. Do not work around protected paths.
