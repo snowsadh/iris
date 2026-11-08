@@ -61,4 +61,8 @@ The current native release accepts whole meal boxes only. It does not infer vehi
 
 Product design starts with real responsibilities: an offer is not a reservation, collection is not receipt, and unresolved food must retain an owner and a next action.
 
-The rejected browser sketch was removed from active code. Its original version is preserved in Git commit `23aa834`. New implementation must use the complete operating model rather than extending that single-case simulation.
+## License and checks
+
+Allfedo source uses the [MIT license](LICENSE). Vendor images retain their own terms. Bundled third-party assets retain their accompanying licenses.
+
+Native and browser checks require the licensed local runtime; a passing host check does not replace them.
