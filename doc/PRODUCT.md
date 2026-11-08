@@ -8,7 +8,7 @@ A kitchen has extra food and limited time. A shelter needs food but must know wh
 
 The product takes an offer through a clear agreement, named collection, and confirmed receipt. It keeps unfinished work visible when someone does not respond or circumstances change.
 
-The failure this design targets: “We could take some” gets mistaken for “Maya will collect 35 boxes at 6 PM.” Food remains at the kitchen because everyone thinks someone else arranged collection. This is a product hypothesis to check with partners, not an interview finding.
+The failure this design targets: “We could take some” gets mistaken for “Jamie Taylor will collect 35 boxes at 6 PM.” Food remains at the kitchen because everyone thinks someone else arranged collection. This is a product hypothesis to check with partners, not an interview finding.
 
 It cannot create a driver, guarantee that every offer is collected, or certify food condition. A match is a suggestion until the people involved agree. A notification is not that agreement.
 
@@ -33,13 +33,25 @@ Transport uses partner staff or approved volunteers under the network's existing
 
 If no partners exist, the coordinator sees **Add a kitchen** and **Add a shelter**, with an explanation of why. The system does not invent nearby organizations or claim that a map result is an approved partner.
 
+## A normal operating day is larger than one rescue
+
+Several kitchens may offer food at once. A shelter's remaining need is shared across all those offers; accepting 30 boxes from one kitchen must reduce what it can still accept elsewhere. The same applies to a collector's time and vehicle capacity.
+
+Offers may contain different lots, packaging, units, deadlines, and holding conditions. Keep those differences visible. A request for 20 trays cannot silently become 20 individual meals. Unknown conversion or handling information needs a specific question or coordinator review.
+
+The coordinator may be handling an undelivered invitation, a quantity shortfall, an unconfirmed collector, and an expected arrival at the same time. The app must show distinct work items with owners and deadlines. A single successful case cannot establish that the network is running smoothly.
+
+Changes preserve previous commitments until explicitly resolved. If food is already with a collector, a missing receipt does not make it available again. Someone must establish its custody and next destination.
+
+The example below teaches the agreement sequence. It is not the full data model or a limit of two shelters. Shared-resource checks and recovery behavior are specified in [TECHNICAL_PLAN.md](TECHNICAL_PLAN.md).
+
 ## One rescue, from beginning to end
 
 The following is a fictional case. Times describe partner availability, not a universal food-safety window.
 
-### 1. Asha counts the kitchen's surplus
+### 1. Alex Morgan counts the kitchen's surplus
 
-At City Kitchen, Asha has 80 sealed, chilled meal boxes: rice, chickpea curry, and yogurt. The kitchen confirms milk is present and states how the boxes are being held. The food is ready from 5:40 PM and staff can hand it over until 6:20 PM.
+At City Kitchen, Alex Morgan has 80 sealed, chilled meal boxes: rice, chickpea curry, and yogurt. The kitchen confirms milk is present and states how the boxes are being held. The food is ready from 5:40 PM and staff can hand it over until 6:20 PM.
 
 She opens **Offer food**. Saved address and entrance details are already present. She confirms:
 
@@ -60,8 +72,8 @@ She taps **Offer 80 meal boxes**. The result says **Offer posted. No pickup conf
 
 The rescue desk shows the offer and today's partner information:
 
-- Riverside Shelter confirmed it can accept 35 boxes and receive until 7 PM. Maya wrote, “Our van should be back around six; let me check.” Collection is not yet confirmed.
-- Bridge Centre confirmed it can accept 45 boxes and receive until 6:45 PM. Omar can collect around 6:10 PM.
+- Riverside Shelter confirmed it can accept 35 boxes and receive until 7 PM. Jamie Taylor wrote, “Our van should be back around six; let me check.” Collection is not yet confirmed.
+- Bridge Centre confirmed it can accept 45 boxes and receive until 6:45 PM. Sam Reed can collect around 6:10 PM.
 
 Both organizations have confirmed they can accept the declared food under their handling requirements. This does not establish suitability for every individual.
 
@@ -75,13 +87,13 @@ The agent helps interpret messages, identify missing information, and choose an 
 
 ### 3. Each shelter makes an actual commitment
 
-Maya sees **35 meal boxes offered by City Kitchen**, the food details, pickup window, receiving address, and reply deadline.
+Jamie Taylor sees **35 meal boxes offered by City Kitchen**, the food details, pickup window, receiving address, and reply deadline.
 
 She chooses **Accept 35 boxes**, selects an approved collector, and confirms a pickup time and transport capacity. If someone else will collect, that person receives a restricted pickup ticket. If she needs fewer, she changes the quantity before accepting. Unneeded boxes become available again.
 
 **Need help collecting** alerts the coordinator and keeps the invitation explicitly pending. It does not create a confirmed pickup. The coordinator must obtain a named approved collector and a valid time, or explain that collection could not be arranged.
 
-The server confirms the reservation against current stock and the current offer. Both parties then see **Maya will collect 35 boxes at 6 PM**. Omar separately confirms 45 at 6:10 PM.
+The server confirms the reservation against current stock and the current offer. Both parties then see **Jamie Taylor will collect 35 boxes at 6 PM**. Sam Reed separately confirms 45 at 6:10 PM.
 
 A delivered invitation, an opened page, and a confirmed reservation remain different facts. An expired link cannot confirm an old quantity.
 
@@ -95,7 +107,7 @@ The demo may use a local email inbox instead of real recipients. It must identif
 
 The pickup ticket contains the kitchen entrance, both contacts, quantity, food details, pickup time, destination, and a collection code. Only authorized participants see this information.
 
-The collector travels to the kitchen. Asha checks the ticket/code and counts the boxes being handed over. She records **Handed over 35 boxes**. The code associates the handoff with the correct reservation; it is not proof of food condition.
+The collector travels to the kitchen. Alex Morgan checks the ticket/code and counts the boxes being handed over. She records **Handed over 35 boxes**. The code associates the handoff with the correct reservation; it is not proof of food condition.
 
 If the count differs, the app requires the people involved to agree on the changed amount and alerts the coordinator. A shortfall cannot silently reduce another reservation.
 

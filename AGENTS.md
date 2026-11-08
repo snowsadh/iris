@@ -24,6 +24,18 @@
 - Start product design from the person's real situation. Explain what they know, what they enter, who acts next, what changes outside the app, and what happens when that step fails.
 - Make each screen understandable without the pitch. Use concrete labels, meaningful actions, and visible outcomes. Avoid vague AI activity, disconnected features, and developer language in normal user flows.
 - Treat physical handoffs, responsibility, and failure handling as core design. Never turn a suggestion or sent notification into a confirmed real-world outcome.
+- Approval of the flow is not approval of its visual design. The current preview's visual style was rejected. Keep it as a disposable flow sketch; do not carry its layout, palette, or components into the final UI by default.
+- Use realistic, internationally suitable names and partner profiles. Do not default the project to Indian names, locations, or operating assumptions.
+- Design for several kitchens, shelters, offers, and collectors working at once. Keep the interface simple while handling shared capacity, changed facts, partial outcomes, and failures underneath.
+
+### Engineering and self-review
+
+- Keep the repository minimal and easy to explore. Remove rejected experiments, unused files, redundant notes, and speculative scaffolding from active code; use Git history for discarded work.
+- Before each coherent edit, consult applicable engineering guidance and review the whole codebase's structure, relevant behavior, shared contracts, and callers. Reconsider the approach if it adds duplication or disconnected work.
+- Use the installed `codebase-design` guidance for meaningful modules with small public interfaces. A module should own a complete responsibility; do not scatter business rules across screens or add wrappers without a purpose.
+- Review your own work at each meaningful milestone and before committing. Challenge assumptions, exercise failure paths, inspect actual screens, and fix weaknesses rather than documenting them away.
+- Aim for a useful real service and an intentional visual design. Do not accept a single generated layout, a hardcoded demonstration, passing tests, or a long feature list as proof of product quality.
+- Continue independent authorized work while the user is away. Ask only for genuinely missing access or decisions, and report exactly what has been verified.
 
 ### Git and collaboration
 

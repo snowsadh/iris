@@ -1,147 +1,74 @@
-# Food rescue: screen and interaction plan
+# Food rescue: experience brief
 
-Read [PRODUCT.md](PRODUCT.md) for the full case. This file specifies what a person sees and what their action means. All screens remain proposed until implemented and checked.
+The first sketch's visual design was rejected. Its one-off simulation is not the foundation for the app. Keep the useful agreement flow in [PRODUCT.md](PRODUCT.md); build the real states described in [TECHNICAL_PLAN.md](TECHNICAL_PLAN.md).
 
-## Rules for every screen
+## What each person should understand
 
-- Lead with the person's task, food, quantity, and relevant deadline.
-- Show the next responsible person and one clear primary action.
-- Use plain actions: **Offer food**, **Send offers**, **Accept 35 boxes**, **Confirm handoff**, **Confirm receipt**.
-- Explain a change where it matters. Do not hide it in a notification feed.
-- Show committed results only after the server confirms them. A spinning button is not acceptance.
-- Keep entered information after a correctable failure. A repeated click must recover the same operation.
-- Use visible labels and readable status text. Color alone never conveys an outcome.
-- Keep technical traces and model details in an optional inspection view, outside everyday tasks.
+Every work item must show the food and unit, relevant quantity, location, time window, responsible person, current uncertainty, and next action. A person should not need the original pitch to understand the screen.
 
-## Screen 1: the kitchen's offer
+| Person | Their starting view | Main work |
+|---|---|---|
+| Kitchen contact | Today's offers and expected collections | Offer food; see who agreed to collect; report changes; record handoffs. |
+| Shelter contact | Addressed offers, expected arrivals, and today's need | Confirm capacity; accept a specific collection; ask for help; confirm receipt. |
+| Collector | Assigned collections | Find entrances and contacts; see packaging and destinations; report a problem. |
+| Coordinator | Cases needing a decision, then upcoming collections | Compare feasible recipients, arrange missing commitments, resolve changes and discrepancies. |
 
-Saved partner details appear as a small pickup summary. Fresh food details are confirmed for every offer.
+Contacts belong to organization/site profiles. Use realistic international placeholders during development. Today's capacity and transport agreements show when and by whom they were confirmed.
 
-```text
-City Kitchen                         Asha
-Offer food
+## Design for a working day
 
-What is available?
-[Rice, chickpea curry and yogurt        ]
-Number of meal boxes [80]
-Ready from [5:40 PM]   Collect by [6:20 PM]
-Ingredients / allergens [Contains milk ]
-Holding [Kept chilled] · Packaging: sealed boxes
+The coordinator handles several kitchens, overlapping offers, competing needs, delayed replies, and collectors with existing assignments. One row is a real case or collection, not a fixed column in a demonstration.
 
-Pickup: rear entrance · Asha on site
-[Change pickup details]
+Start with an action list. State the obstacle and needed decision: **10 boxes short — Alex Morgan needs revised quantities confirmed**, or **Bridge's invitation was not delivered — contact Sam Reed before the hold ends**.
 
-[Offer 80 meal boxes]
-```
+Separate a new decision from waiting on someone else. A confirmed collection should not keep asking the coordinator to arrange it. An older source message stays in history, not as the current warning.
 
-Required information stays on one page. Optional message-to-draft entry is secondary. No AI chat is needed to fill a normal offer.
+Filter by location, organization, responsible person, and time window. Opening a case retains the list context so handling an exception does not make the coordinator lose their place.
 
-After posting, replace the form with the offer ticket: **80 available · no pickup confirmed**. Later show each named collector, time, and quantity. Do not show “Donation complete” after posting.
+## Make commitments visible
 
-## Screen 2: the coordinator's rescue desk
+- Carry the same offer, lot, recipient, and collection identity across related views.
+- Label quantity precisely: **35 held**, **35 collected**, **33 accepted**, **2 awaiting explanation**. Do not make people reconstruct the difference.
+- Use a time-window strip for ready time, collection deadline, agreed pickups, and receiving deadline. Pair visual markers with readable times.
+- Describe packaging physically: **35 boxes in 7 carry cartons**, with the collector's capacity agreement beside it.
+- Show changed facts with the previous and current value, source, and affected commitments.
+- Explain a proposal through actual needs and messages. Keep evidence one step away.
 
-The opening screen answers **What needs me now?** Cases needing a decision appear first. Each row gives the specific obstacle and action, such as **Bridge needs a collector — reply by 6:05 PM — Arrange collection**.
+These cues encode real work. They are not decorative progress bars or impact counters.
 
-Scheduled pickups and completed receipts remain available without dominating the page. No global map, carbon estimate, arbitrary score, or stream of “AI activity.”
+## Forms serve the situation
 
-Opening an offer puts stable food facts beside the proposed recipient requests:
+Saved site and contact details reduce repeated entry. Routine offers should be quick. Additional questions appear because that food or collection needs them, not because every case shares an arbitrary three-field form.
 
-```text
-City Kitchen · 80 meal boxes · collect by 6:20 PM
-Rice, chickpea curry and yogurt · contains milk
-Kitchen contact: Asha · rear entrance
+Keep original units. Do not silently convert trays or kilograms into meal boxes. Unknown ingredients, holding information, capacity, or receiving hours need an answer or review.
 
-Recipient             Boxes   Why this can work
-Riverside Shelter     [35]    Need confirmed; ask Maya to confirm pickup
-Bridge Centre         [45]    Need confirmed today; Omar can collect
+Before acceptance, show the exact quantity/unit, food facts, collection window, collector, destination, and receiving deadline. Changing quantity changes the acceptance button's wording.
 
-80 held if sent · replies due 6:05 PM
-[Send 2 offers]
-```
+Contact and directions actions use verified details. Escalation leads to a specific person and task. Avoid buttons that merely display reassurance without changing the relevant work.
 
-The proposed plan is editable. Current need and travel/collection facts must have an identifiable source. An uncertain arrangement says **Needs confirmation**, not “98% match.” Recent receipts can help the coordinator make distribution decisions; no unexplained fairness score is claimed.
+## Feedback matches saved outcomes
 
-Riverside's source message says its van may be back around six. Show that exact uncertainty next to the proposed request. The person should understand why a collection confirmation is being requested.
-
-After sending, the main content becomes the two actual requests and their reply states. It does not keep presenting the same suggestion as unfinished AI work.
-
-## Screen 3: the shelter's invitation
-
-```text
-35 meal boxes offered to Riverside Shelter
-From City Kitchen
-Rice, chickpea curry and yogurt · contains milk
-Ready 5:40 PM · collect by 6:20 PM
-Reply by 6:05 PM
-
-How many can you take? [35]
-Who will collect? [Maya]
-Pickup time [6:00 PM]
-
-[Accept 35 boxes]
-[Need help collecting]     [Decline]
-```
-
-Acceptance makes a commitment. The final response repeats the agreed quantity and time. An expired or changed offer explains what happened and shows current choices.
-
-Collection help creates a coordinator task. Show whether a hold remains and when it ends. It must not say that a driver is on the way.
-
-## Screen 4: the pickup ticket
-
-This is a compact, mobile page for the specific collection. It contains both locations, entrance instructions, contacts, quantity, food details, pickup time, and authorized collection code.
-
-Kitchen staff record the real handoff. **Confirm handoff of 35 boxes** opens a short confirmation with the collector's name and actual count. Changed counts require agreement; the app cannot silently complete the original amount.
-
-Directions open the device's map tool. Contact actions use verified partner details. Viewing the ticket never changes a collection's status.
-
-## Screen 5: receiving confirmation
-
-After collection, the receiving contact sees **35 boxes collected by Maya — confirm what arrived**.
-
-- **Received all 35 boxes** records that explicit confirmation.
-- **Report a different quantity or problem** reveals actual accepted count and the issue.
-
-A short receipt follows. For a discrepancy: **33 boxes received. Coordinator follow-up needed for 2.** A reassuring success toast must not cover that unresolved difference.
-
-## Failures need instructions
-
-| Avoid | Use |
+| Situation | Useful wording |
 |---|---|
-| Processing donation | Waiting for Riverside to accept 35 boxes. Reply due 6:05 PM. |
-| Allocation optimized | Proposed: 35 boxes to Riverside, 45 to Bridge. Review before sending. |
-| Something went wrong | Your reply was not sent. Check the connection and try again. |
-| Offer unavailable | This offer expired at 6:05 PM. No boxes were reserved for you. |
-| Rescue completed | Riverside confirmed receipt of 35 boxes. |
-| Failed delivery | Receiving staff could not be reached. Coordinator Lee needs to confirm another receiving location. |
+| Invitation exists | **35 boxes held for Riverside until 6:05 PM. Waiting for Jamie Taylor's reply.** |
+| Transport is tentative | **Jamie Taylor has not confirmed a collector. Ask before promising collection.** |
+| Acceptance is in flight | **Sending acceptance. Your pickup is not confirmed yet.** |
+| Reply was lost | **Checking whether your acceptance was saved.** |
+| Capacity changed | **Riverside can now accept 15 more boxes. Review the quantity.** |
+| Receipt is short | **33 boxes accepted. Jordan Lee is following up on the other 2.** |
 
-Use the specific error actually observed. If the server's outcome is unknown, say **Checking whether your acceptance was saved** and recover it before asking for another submission.
+Use observed facts. A sent email is not a read invitation. A timer ending is not proof that a confirmed collector never arrived. A stale approval needs a current decision.
 
-## Visual direction
+## Develop a new visual direction
 
-The interface should feel like a clear pickup ticket used by busy staff. Its signature is the same food, quantity, time, and responsible-person block carried from offer to invitation to receipt. The wording changes to match what is actually known.
+Compare at least two compositions using the same realistic working-day data: a task-first workbench and a collection schedule with visible dependencies. Judge finding the next action, understanding a changed commitment, and using the pickup ticket on a phone.
 
-- Ink `#203735`, paper `#F7FAF9`, action green `#27664D`, attention amber `#8C5200`, problem red `#A82E36`, divider `#D7E2DB`.
-- Large plain quantity and time; compact headings. Prefer Barlow Semi Condensed for headings and Atkinson Hyperlegible for body text, with local system fallbacks. A preview must work without downloading fonts.
-- One column on phones. The coordinator's detail screen may use two columns on wider screens.
-- Large touch controls, visible keyboard focus, persistent form labels, readable contrast, and no motion needed to understand state.
+Choose typography, spacing, hierarchy, and color deliberately. Use meaningful status color, clear units, strong keyboard focus, and readable touch targets. The discarded palette and card arrangement are not approved defaults.
 
-Design critique: a donation landing page with impact counters would consume space without arranging food. The pickup ticket and action queue are more appropriate. Green is reserved for actions and confirmed states; amber/red mean an actual exception, not decorative urgency.
+The useful visual signature comes from physical quantities, time windows, and named commitments. It should not depend on generic AI motifs or decorative cards.
 
-## Review before calling the design ready
+## Review before treating a screen as ready
 
-Give someone only the screen. Can they identify the food, available quantity, relevant deadline, responsible person, and consequence of the primary button?
+Walk through offers competing for one need, an unavailable collector, a kitchen shortfall, stale review, an undelivered invitation, a late pickup, and a partial receipt. Follow each action to its saved state, next owner, and physical consequence.
 
-Walk through posting, split requests, accepting fewer, expiry, pickup, receipt, and one discrepancy. Every visible state must explain the next step. A complete receipt must be traceable to the original offer without treating a notification or suggestion as physical evidence.
-
-Any clickable preview uses fictional local data. It does not demonstrate live messaging, real food movement, authentication, or an AI Hub run. Production accounts will be scoped to the person's organization; switching roles belongs only in the preview controls.
-
-## Current preview and review findings
-
-[Open the preview](../design/food-rescue.html); [walkthrough and checks](../design/README.md).
-
-- The connected local case runs from an 80-box offer through separate requests, acceptances, kitchen handoffs, and receiving confirmations.
-- Partial acceptance, reply expiry, collection help, and a short receipt have working preview paths. Other failures in the product plan remain implementation work.
-- Screen review exposed an old collection warning surviving after acceptance. The next-action panel now follows current case state and names the person who must act.
-- Received quantity is labeled separately from collected, withdrawn, returned, and reported-damaged quantities. A resolved discrepancy cannot inflate the receipt count.
-- Browser checks and desktop/mobile visual review apply only to this preview. No native workflow, food-policy validation, live messaging, or field usability trial has been completed.
-- Checked on 9 November in Chromium: the complete case, partial quantities, stock-limit rejection, expired replies, collection help, short receipts, and refresh recovery passed. Also completed a mobile receipt flow at 390 pixels wide; desktop and mobile screenshots were visually inspected. These are local interface checks, not server concurrency or field tests.
+Inspect desktop/mobile views, keyboard interaction, long names, incomplete data, and conflicting deadlines. Use backend states as soon as available. A screenshot or click test alone does not establish an operational product.

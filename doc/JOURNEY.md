@@ -59,10 +59,18 @@ Record project decisions, design tradeoffs, experiments, and lessons useful for 
 
 - **Designed:** Followed a kitchen's meal-box offer through coordinator review, explicit recipient commitments, named collection, physical handoff, and receiving confirmation. Saved the complete story in [PRODUCT.md](PRODUCT.md) and screen behavior in [INTERFACE.md](INTERFACE.md).
 - **Practical lessons:** Usual shelter capacity is not today's need. Tentative transport is not a confirmed collector. A receipt count is not a claim that people were fed. Handling rules still need a real network and location.
-- **Built for review:** A local [interface preview](../design/README.md) with fictional partners, a full case, and selected failure paths. It uses no live messaging, authentication, model, or native IRIS runtime.
+- **Built for review:** A local interface sketch with fictional partners, a full case, and selected failure paths, introduced in commit `23aa834`. It used no live messaging, authentication, model, or native IRIS runtime. The rejected sketch was later removed from active code.
 - **Review finding:** An outdated transport warning stayed visible after acceptance. Changed the next-action panel to follow current state and responsibility. Also made receipt shortfalls and withdrawn quantities remain visible rather than disappearing into a success state.
-- **Verification:** Browser checks passed for the complete local case and selected failure paths, including a mobile receipt. Inspected desktop/mobile screenshots. The preview is served locally from its own directory; no private research notes are served.
+- **Verification:** Browser checks passed for the complete local case and selected failure paths, including a mobile receipt. Desktop/mobile screenshots were inspected. These checks applied to the discarded sketch, not the native app.
 - **Next:** Review this product flow, then implement and verify the native integration, actual partner communication, and operational rules. A clickable example is not a submitted service or field validation.
+
+## 2026-11-09 — Reject the visual shortcut and design for shared work
+
+- **User feedback:** Agreement with the flow did not approve the interface. The sketch looked generic and its single-case world was too small. Use realistic international placeholder profiles.
+- **Repository decision:** Removed the rejected sketch and its browser checks from active code. Git history preserves the experiment; current docs retain its useful lessons without carrying its simulated state into the application.
+- **Technical correction:** Capacity belongs to the whole network day, not each screen. Food stock, receiving need, and collection availability must be checked together. Quantity shortfalls and unknown custody remain explicit rather than being rewritten into a success state.
+- **Implementation preparation:** Added licensed-image setup and native class verification. Archive/platform and private-configuration preservation checks pass; those checks are not evidence of a working native workflow. A local test email inbox is available for the first integration case.
+- **Working standard:** Review coherent responsibilities, actual failures, and screenshots at meaningful milestones. Keep the repository small and remove work that no longer serves the product.
 
 ## Entry pattern
 
