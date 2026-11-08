@@ -19,6 +19,7 @@
 - When studying contest winners, compare implementation, validation, usability, presentation, and bonus points as well as idea. Include Expert and Freshmen awards; separate evidence from guesses about judges' preferences.
 - Use OcuPilot as a quality reference for both useful technical originality and strong execution. Aim for complete behavior, clear resources, and documentation backed by working evidence.
 - Treat professional implementation and documentation as core project work, not final polish. Evaluate the whole release: purpose, coherent behavior, setup, interface, tests, developer guidance, and honest limits.
+- For idea searches, compare the core problem, approach, narrative, and distinctive technical value across varied contest sites. The source project need not already use IRIS or meet our delivery standard; those are our implementation responsibilities. Clearly separate the original idea from proposed adaptations.
 
 ### Git and collaboration
 

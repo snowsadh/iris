@@ -25,6 +25,13 @@ Record project decisions, design tradeoffs, experiments, and lessons useful for 
 - **Limit:** Professional presentation also appears in lower-ranked entries. It is our quality target, not a proven formula for winning. No idea selected.
 - **Source:** [Expert guidance](https://community.intersystems.com/post/what-experts-look-contest-entries).
 
+## 2026-11-09 — Separate idea discovery from delivery planning
+
+- **Search brief:** Broaden the contest sites. Compare the main idea, approach, story, and room for distinctive technical work.
+- **Learning:** An inspiring project need not already use IRIS or have our target documentation quality. We must judge the concept separately from the work needed to adapt and deliver it.
+- **Method:** Keep original project descriptions separate from our proposed versions. Label award claims carefully. Ordered recommendations guide exploration; they do not select our project or predict prizes.
+- **Status:** No idea selected. Candidate details and source links stay in private idea notes.
+
 ## Entry pattern
 
 Use only fields that help:
