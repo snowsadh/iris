@@ -35,7 +35,10 @@ ClassMethod Normalize(action As %String, payload As %String) As %String [ Langua
     import re
     def normalize():
         fields = {
-            "create_offer": {"description", "quantity", "unit", "ready_at", "collect_by", "holding", "present_allergens", "assessed_allergens", "event_at"},
+            "create_offer": {"description", "quantity", "unit", "ready_at", "collect_by", "holding", "handling_until", "packaging", "present_allergens", "assessed_allergens", "event_at"},
+            "save_site": {"revision", "name", "address", "entrance", "time_zone", "contact_phone"},
+            "confirm_food": {"offer_id", "revision", "ready_at", "collect_by", "holding", "handling_until", "packaging", "present_allergens", "assessed_allergens", "event_at"},
+            "update_need": {"need_id", "revision", "quantity", "unit", "receiving_until", "confirmed_until", "excluded_allergens", "accepted_holding", "event_at"},
             "create_need": {"quantity", "unit", "receiving_until", "confirmed_until", "excluded_allergens", "accepted_holding", "event_at"},
             "apply_plan": {"offer_id", "offer_revision", "requests", "reason"},
             "accept": {"allocation_id", "revision", "quantity"},
@@ -53,7 +56,9 @@ ClassMethod Normalize(action As %String, payload As %String) As %String [ Langua
         if not isinstance(item, dict) or set(item) != fields[action]:
             raise ValueError("Supply exactly the documented fields for " + action + ".")
         for name, value in item.items():
-            if name in {"ready_at", "collect_by", "receiving_until", "confirmed_until", "event_at", "pickup_at", "arrival_by"}:
+            if name in {"ready_at", "collect_by", "receiving_until", "confirmed_until", "event_at", "pickup_at", "arrival_by", "handling_until"}:
+                if name == "handling_until" and value is None:
+                    continue
                 from datetime import datetime
                 try:
                     instant = datetime.fromisoformat(value.replace("Z", "+00:00"))
@@ -65,8 +70,16 @@ ClassMethod Normalize(action As %String, payload As %String) As %String [ Langua
                 if not isinstance(value, str) or not re.fullmatch(r"[0-9]{1,6}", value):
                     raise ValueError(name + " must be a whole-number string, at most 999999.")
             elif name in {"revision", "offer_revision"}:
-                if type(value) is not int or value < 1:
+                if type(value) is not int or value < (0 if action == "save_site" else 1):
                     raise ValueError(name + " must be a positive integer.")
+            elif name == "holding" and value is None:
+                continue
+            elif name in {"packaging", "entrance", "contact_phone"}:
+                if not isinstance(value, str) or len(value) > (100 if name == "contact_phone" else 1000):
+                    raise ValueError(name + " must be text within its length limit; leave it empty when unknown.")
+            elif name in {"name", "address", "time_zone"}:
+                if not isinstance(value, str) or not value.strip() or len(value) > (1000 if name == "address" else 200):
+                    raise ValueError(name + " needs the partner's real confirmed details.")
             elif name.endswith("_id") or name in {"description", "reason", "unit", "holding"}:
                 if not isinstance(value, str) or not value.strip() or len(value) > 500:
                     raise ValueError(name + " needs nonempty text, at most 500 characters.")
@@ -78,17 +91,23 @@ ClassMethod Normalize(action As %String, payload As %String) As %String [ Langua
                     raise ValueError(name + " needs an array of short labels.")
             elif name == "handling_accepted" and type(value) is not bool:
                 raise ValueError("handling_accepted must be true or false.")
-        if action in {"create_offer", "create_need"}:
-            if item["unit"] != "meal_box" or int(item["quantity"]) < 1:
+        if action == "save_site":
+            from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+            try:
+                ZoneInfo(item["time_zone"])
+            except (ZoneInfoNotFoundError, ValueError):
+                raise ValueError("Use a valid IANA time zone, such as Europe/London.") from None
+        if action in {"create_offer", "create_need", "update_need"}:
+            if item["unit"] != "meal_box" or int(item["quantity"]) < (0 if action == "update_need" else 1):
                 raise ValueError("This release accepts positive whole meal boxes only; no unit conversion is applied.")
-            allowed = {"chilled", "hot", "ambient"}
-            if action == "create_offer":
-                if item["holding"] not in allowed:
-                    raise ValueError("Choose chilled, hot, or ambient holding.")
-                if not set(item["present_allergens"]) <= set(item["assessed_allergens"]):
-                    raise ValueError("Every present allergen needs an assessment.")
-            elif not set(item["accepted_holding"]) <= allowed:
-                raise ValueError("Unknown receiving handling condition.")
+        allowed = {"chilled", "hot", "ambient"}
+        if action in {"create_offer", "confirm_food"}:
+            if item["holding"] is not None and item["holding"] not in allowed:
+                raise ValueError("Choose chilled, hot, or ambient holding.")
+            if not set(item["present_allergens"]) <= set(item["assessed_allergens"]):
+                raise ValueError("Every present allergen needs an assessment.")
+        if action in {"create_need", "update_need"} and not set(item["accepted_holding"]) <= allowed:
+            raise ValueError("Unknown receiving handling condition.")
         return json.dumps(item, sort_keys=True, separators=(",", ":"))
     try:
         return json.dumps({"ok": True, "payload": json.loads(normalize())})

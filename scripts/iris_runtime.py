@@ -16,6 +16,13 @@ import time
 
 PROJECT = Path(__file__).resolve().parents[1]
 SUPPORTED_BUILDS = frozenset({"2027.1.0AI.109.0", "2026.3.0AI.154.0"})
+
+
+def _terminal_error(output: str) -> bool:
+    # IRIS's interactive terminal may continue after an error and still exit zero.
+    return re.search(r"(?m)^\s*<[A-Z][A-Z0-9 -]*>", output) is not None
+
+
 PROBE = '''Write !,"FOOD_RESCUE_VERSION=",$ZVERSION,!
 Write "FOOD_RESCUE_AGENT=",##class(%Dictionary.CompiledClass).%ExistsId("%AI.Agent"),!
 Write "FOOD_RESCUE_PROVIDER=",##class(%Dictionary.CompiledClass).%ExistsId("%AI.Provider"),!
@@ -135,6 +142,8 @@ def verify_native(expected_build: str, expected_image_id: str, timeout: float = 
                     if image.stdout.strip() != expected_image_id:
                         raise RuntimeError("The running IRIS container does not use the loaded image.")
                     result = probe(["docker", "exec", "-i", container_id, "iris", "session", "IRIS", "-U", "%SYS"], input=PROBE)
+                    if _terminal_error(result.stdout):
+                        raise RuntimeError("Native verification reported an ObjectScript error; inspect the local terminal output.")
                     version = re.search(r"(?m)^FOOD_RESCUE_VERSION=([^\r\n]+)\r?$", result.stdout)
                     if result.returncode == 0 and version:
                         actual_version = version.group(1).strip()
@@ -197,21 +206,35 @@ def _verify_selected_runtime() -> str:
 def configure_application() -> None:
     """Create the isolated application namespace and compile the mounted source."""
     _verify_selected_runtime()
+    # Each terminal input line must be complete; compiled ObjectScript supports multiline blocks.
+    prepare = '''Set sc=1, wasRunning=0
+If ##class(%SYS.Namespace).Exists("ALLFEDO") { ZN "ALLFEDO" Set wasRunning=##class(Ens.Director).IsProductionRunning(.production) If wasRunning { If production'="Allfedo.Production" { Set sc=0 Write !,"A different Production owns ALLFEDO; stop it explicitly before setup.",! } Else { Set sc=##class(Ens.Director).StopProduction() } } }
+If 'sc Do $SYSTEM.Status.DisplayError(sc)
+Write !,"ALLFEDO_PREPARED=",(sc=1),!
+Halt
+'''
+    prepared = subprocess.run(_compose_command("exec", "-T", "iris", "iris", "session", "IRIS", "-U", "%SYS"),
+                              cwd=PROJECT, input=prepare, text=True, capture_output=True, timeout=60)
+    if prepared.returncode != 0 or _terminal_error(prepared.stdout) or "ALLFEDO_PREPARED=1" not in prepared.stdout.splitlines():
+        print(prepared.stdout, end="")
+        raise RuntimeError("The running Production could not be stopped safely before setup.")
     subprocess.run(_compose_command("cp", str(PROJECT / "scripts" / "namespace.cpf"),
                                     "iris:/tmp/allfedo-namespace.cpf"), cwd=PROJECT, check=True)
     subprocess.run(_compose_command("exec", "-T", "iris", "iris", "merge", "IRIS",
                                     "/tmp/allfedo-namespace.cpf"), cwd=PROJECT, check=True, timeout=120)
     commands = '''Set sc=$SYSTEM.OBJ.LoadDir("/opt/allfedo/Allfedo","ck",,1)
 If 'sc Do $SYSTEM.Status.DisplayError(sc)
+If sc Set sc=##class(Ens.Director).StartProduction("Allfedo.Production")
+If 'sc Do $SYSTEM.Status.DisplayError(sc)
 Write !,"ALLFEDO_COMPILED=",(sc=1),!
 Halt
 '''
     result = subprocess.run(_compose_command("exec", "-T", "iris", "iris", "session", "IRIS", "-U", "ALLFEDO"),
                             cwd=PROJECT, input=commands, text=True, capture_output=True, timeout=120)
-    if result.returncode != 0 or "ALLFEDO_COMPILED=1" not in result.stdout.splitlines():
+    if result.returncode != 0 or _terminal_error(result.stdout) or "ALLFEDO_COMPILED=1" not in result.stdout.splitlines():
         print(result.stdout, end="")
         raise RuntimeError("Application compilation did not succeed. Review the compiler messages above.")
-    print("Allfedo compiled in ALLFEDO. Production startup, web access, and model calls are separate checks.")
+    print("Allfedo compiled and its Production started. Web access, account setup, and model calls are separate checks.")
 
 
 def test_application() -> None:
@@ -224,20 +247,22 @@ If 'sc Do $SYSTEM.Status.DisplayError(sc)
 If sc { Set result=##class(AllfedoScenario).TestCommands() Write !,"ALLFEDO_COMMANDS=",result.%ToJSON(),! }
 If sc { Set result=##class(AllfedoScenario).TestRaces() Write !,"ALLFEDO_RACES=",result.%ToJSON(),! }
 If sc { Set result=##class(AllfedoScenario).TestBusyRecovery() Write !,"ALLFEDO_BUSY=",result.%ToJSON(),! }
+If sc { Set result=##class(AllfedoScenario).TestFacts() Write !,"ALLFEDO_FACTS=",result.%ToJSON(),! }
+If sc { Set result=##class(AllfedoScenario).TestProductionLocks() Write !,"ALLFEDO_WORKERS=",result.%ToJSON(),! }
 Halt
 '''
     result = subprocess.run(_compose_command("exec", "-T", "iris", "iris", "session", "IRIS", "-U", "ALLFEDO"),
                             cwd=PROJECT, input=commands, text=True, capture_output=True, timeout=90)
     checks = {}
     for line in result.stdout.splitlines():
-        for name in ("COMMANDS", "RACES", "BUSY"):
+        for name in ("COMMANDS", "RACES", "BUSY", "FACTS", "WORKERS"):
             prefix = f"ALLFEDO_{name}="
             if line.startswith(prefix):
                 checks[name] = json.loads(line.removeprefix(prefix))
-    if result.returncode != 0 or any(checks.get(name, {}).get("ok") is not True for name in ("COMMANDS", "RACES", "BUSY")):
+    if result.returncode != 0 or _terminal_error(result.stdout) or any(checks.get(name, {}).get("ok") is not True for name in ("COMMANDS", "RACES", "BUSY", "FACTS", "WORKERS")):
         print(result.stdout, end="")
         raise RuntimeError("Native command or shared-capacity checks did not pass.")
-    print("Native commands, concurrent shared capacity, and lock retry recovery passed. No model call was made.")
+    print("Native command, capacity, fact, retry, and persistent-worker checks passed. No model call was made.")
 
 
 def main() -> None:
@@ -257,7 +282,7 @@ def main() -> None:
             test_application()
     except (OSError, ValueError, RuntimeError, tarfile.TarError,
             subprocess.CalledProcessError, subprocess.TimeoutExpired) as error:
-        parser.exit(1, f"Installation not complete: {error}\n")
+        parser.exit(1, f"Runtime command failed: {error}\n")
 
 
 if __name__ == "__main__":

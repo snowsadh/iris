@@ -90,6 +90,14 @@ Record project decisions, design tradeoffs, experiments, and lessons useful for 
 - **Experience lesson:** Delhivery and Porter explain concrete service choices and recovery. Our interface should explain loads, contacts, entrances, and custody where people need them, using useful illustrations instead of decorative AI activity.
 - **Remaining:** Signed-in screens, complete shortage/custody recovery, richer partner facts, full end-to-end checks, and release documentation. No operational or contest submission success claimed.
 
+## 2026-11-09 — Let the real browser flow challenge the backend
+
+- **Built:** Partners now confirm their location, entrance, time zone, food conditions, and packaging. Unknown food details remain blocked for planning. A reduced receiving need keeps earlier promises visible instead of rewriting them away.
+- **Source lesson:** The original food count and later handling confirmations are different records. A plan must cite all current supporting facts.
+- **Native lesson:** IRIS stores fields in numbered positions. Keeping those positions preserved existing records when code and data were separated for sign-in permissions.
+- **Browser finding:** A successful lock was not being marked for release. Short-lived tests hid the problem because their processes exited; real workflow workers stayed alive and later requests became busy. Fixed the cleanup and added checks from another process while those workers remain running.
+- **Verified:** Five native suites now pass. Signed-in HTTP checks also cover role scope, native login/logout, repeated requests, and a plan preview that creates no hold. The complete browser journey and consent-based recovery are still under development.
+
 ## Entry pattern
 
 Use only fields that help:

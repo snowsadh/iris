@@ -32,13 +32,21 @@ ClassMethod Execute(actorId As %String, requestId As %String, action As %String,
             Set normalized=parsed.payload
             Do ..ResourceKeys(action, normalized, actor, .keys)
             Set key=""
-            For { Set key=$Order(keys(key)) Quit:key=""  Lock +^Allfedo.Lock(key):5 If '$Test Throw ##class(%Exception.General).%New("BUSY",1001,,"A related record is busy. Retry this same request shortly.") Set held(key)=1 }
+            For {
+                Set key=$Order(keys(key))
+                Quit:key=""
+                Lock +^Allfedo.Lock(key):5
+                If '$Test {
+                    Throw ##class(%Exception.General).%New("BUSY",1001,,"A related record is busy. Retry this same request shortly.")
+                }
+                Set held(key)=1
+            }
             TSTART
             Set actor = ..Actor(actorId)
             Set outcome = ..Change(actor, action, normalized)
             Set command = ##class(Allfedo.Record.Command).%New()
             Set command.ActorId=actorId, command.RequestId=requestId, command.Action=action, command.PayloadJSON=payloadJSON
-            Set command.ResultJSON=outcome.%ToJSON(), command.RecordedAt=##class(Allfedo.Policy).Now()
+            Set command.ResultJSON=outcome.%ToJSON(), command.RecordedAt=##class(Allfedo.Policy).Now(), command.WorkerJob=""_$Job
             Do ..Save(command)
             TCOMMIT
             Set result=command.ResultJSON
@@ -52,7 +60,7 @@ ClassMethod Execute(actorId As %String, requestId As %String, action As %String,
             Set failure={"ok":false,"error":{"code":"COMMAND_REJECTED","message":(error.Data)}}
             Set command=##class(Allfedo.Record.Command).%New()
             Set command.ActorId=actorId, command.RequestId=requestId, command.Action=action, command.PayloadJSON=payloadJSON
-            Set command.ResultJSON=failure.%ToJSON(), command.RecordedAt=##class(Allfedo.Policy).Now()
+            Set command.ResultJSON=failure.%ToJSON(), command.RecordedAt=##class(Allfedo.Policy).Now(), command.WorkerJob=""_$Job
             Try { Do ..Save(command) Set result=command.ResultJSON } Catch saveError { Set result={"ok":false,"error":{"code":"NOT_SAVED","message":"The result could not be saved. Check server availability before retrying."}}.%ToJSON() }
         } Else {
             Set result={"ok":false,"error":{"code":"NOT_SAVED","message":"The request could not be completed. Check the command fields and server availability, then retry with the same request ID."}}.%ToJSON()
@@ -66,7 +74,13 @@ ClassMethod Execute(actorId As %String, requestId As %String, action As %String,
 
 ClassMethod ResourceKeys(action As %String, data As %DynamicObject, actor As Allfedo.Record.Actor, ByRef keys)
 {
-    If action="apply_plan" {
+    If action="save_site" {
+        Set keys("site:"_actor.NetworkId _ ":"_actor.OrganizationId)=1
+    } ElseIf action="confirm_food" {
+        Set keys("offer:"_data."offer_id")=1
+    } ElseIf action="update_need" {
+        Set keys("need:"_data."need_id")=1
+    } ElseIf action="apply_plan" {
         Set keys("offer:"_data."offer_id")=1
         Set requests=data.requests
         Do ..Require($IsObject(requests), "A plan needs recipient requests.")
@@ -85,6 +99,9 @@ ClassMethod ResourceKeys(action As %String, data As %DynamicObject, actor As All
 
 ClassMethod Change(actor As Allfedo.Record.Actor, action As %String, data As %DynamicObject) As %DynamicObject
 {
+    If action="save_site" Quit ##class(Allfedo.Facts).SaveSite(actor,data)
+    If action="confirm_food" Quit ##class(Allfedo.Facts).ConfirmFood(actor,data)
+    If action="update_need" Quit ##class(Allfedo.Facts).UpdateNeed(actor,data)
     If action="create_offer" Quit ..CreateOffer(actor,data)
     If action="create_need" Quit ..CreateNeed(actor,data)
     If action="apply_plan" Quit ..ApplyPlan(actor,data)
@@ -95,16 +112,14 @@ ClassMethod Change(actor As Allfedo.Record.Actor, action As %String, data As %Dy
 ClassMethod CreateOffer(actor As Allfedo.Record.Actor, data As %DynamicObject) As %DynamicObject
 {
     Do ..Require(actor.Role="kitchen", "The kitchen contact must confirm its own food facts.")
-    Set ready=##class(Allfedo.Policy).Instant(data."ready_at"), deadline=##class(Allfedo.Policy).Instant(data."collect_by"), now=##class(Allfedo.Policy).Now()
-    Do ..Require((ready<deadline)&&(deadline>now), "The collection window must be open and finish after the food is ready.")
     Set source=..Source(actor,"offer_confirmation",data)
     Set offer=##class(Allfedo.Record.Offer).%New()
     Set offer.NetworkId=actor.NetworkId, offer.OrganizationId=actor.OrganizationId, offer.ContactActorId=actor.%Id()
-    Set offer.Description=data.description, offer.DeclaredQuantity=+data.quantity, offer.CurrentQuantity=+data.quantity
-    Set offer.Unit=data.unit, offer.ReadyAt=ready, offer.CollectBy=deadline, offer.Holding=data.holding
-    Set offer.PresentAllergensJSON=data."present_allergens".%ToJSON(), offer.AssessedAllergensJSON=data."assessed_allergens".%ToJSON(), offer.SourceId=source.%Id()
+    Set offer.Description=data.description, offer.DeclaredQuantity=+data.quantity, offer.CurrentQuantity=+data.quantity, offer.Unit=data.unit, offer.SourceId=source.%Id(), offer.OriginalSourceId=source.%Id()
+    Set changed=##class(Allfedo.Facts).SetFoodFields(offer,data)
+    Set offer.State=##class(Allfedo.Facts).FoodState(offer)
     Do ..Save(offer), ..Event(actor,"offer_confirmed",offer.%Id(),data)
-    Quit {"ok":true,"offer_id":(offer.%Id()),"revision":1,"state":"open"}
+    Quit {"ok":true,"offer_id":(offer.%Id()),"revision":1,"state":(offer.State)}
 }
 
 ClassMethod CreateNeed(actor As Allfedo.Record.Actor, data As %DynamicObject) As %DynamicObject
@@ -117,8 +132,9 @@ ClassMethod CreateNeed(actor As Allfedo.Record.Actor, data As %DynamicObject) As
     Set need.NetworkId=actor.NetworkId, need.OrganizationId=actor.OrganizationId, need.ContactActorId=actor.%Id(), need.RequestedQuantity=+data.quantity
     Set need.Unit=data.unit, need.ReceivingUntil=receiving, need.ConfirmedUntil=confirmed
     Set need.ExcludedAllergensJSON=data."excluded_allergens".%ToJSON(), need.AcceptedHoldingJSON=data."accepted_holding".%ToJSON(), need.SourceId=source.%Id()
+    Set need.State=##class(Allfedo.Facts).NeedState(need)
     Do ..Save(need), ..Event(actor,"need_confirmed",need.%Id(),data)
-    Quit {"ok":true,"need_id":(need.%Id()),"revision":1}
+    Quit {"ok":true,"need_id":(need.%Id()),"revision":1,"state":(need.State)}
 }
 
 /// Caller holds every cited offer/need lock. The validator sees freshly read, confirmed records.
@@ -129,10 +145,15 @@ ClassMethod ApplyPlan(actor As Allfedo.Record.Actor, data As %DynamicObject) As 
     Set checked=..Parse(##class(Allfedo.Policy).Validate(snapshot.%ToJSON(),data.%ToJSON()))
     Do ..Require(checked.ok, $Select(checked.ok:"",1:checked.error.message))
     Set offer=..Open("Allfedo.Record.Offer",data."offer_id"), ids=[]
-    Set now=##class(Allfedo.Policy).Now(), expiry=$Select(now+900<offer.CollectBy:now+900,1:offer.CollectBy)
+    Set now=##class(Allfedo.Policy).Now(), expiry=now+900
+    If expiry>offer.CollectBy Set expiry=offer.CollectBy
+    If expiry>offer.HandlingUntil Set expiry=offer.HandlingUntil
     For i=0:1:checked.plan.requests.%Size()-1 {
         Set request=checked.plan.requests.%Get(i), quantity=+request.quantity
         Set need=..Open("Allfedo.Record.Need",request."need_id")
+        Set invitationExpiry=expiry
+        If invitationExpiry>need.ConfirmedUntil Set invitationExpiry=need.ConfirmedUntil
+        If invitationExpiry>need.ReceivingUntil Set invitationExpiry=need.ReceivingUntil
         // No caller, including a coordinator, can bypass either resource check.
         Do ..Require((offer.CurrentQuantity-offer.HeldQuantity-offer.CommittedQuantity-offer.CollectedQuantity)>=quantity,"The food quantity changed.")
         Do ..Require((need.RequestedQuantity-need.HeldQuantity-need.CommittedQuantity)>=quantity,"The receiving capacity changed.")
@@ -140,9 +161,9 @@ ClassMethod ApplyPlan(actor As Allfedo.Record.Actor, data As %DynamicObject) As 
         Set need.Revision=need.Revision+1
         Set allocation=##class(Allfedo.Record.Allocation).%New()
         Set allocation.NetworkId=actor.NetworkId, allocation.OfferId=offer.%Id(), allocation.NeedId=need.%Id(), allocation.Quantity=quantity
-        Set allocation.HoldUntil=expiry, allocation.OfferRevision=offer.Revision, allocation.NeedRevision=need.Revision, allocation.DecisionJSON=data.%ToJSON()
+        Set allocation.HoldUntil=invitationExpiry, allocation.OfferRevision=offer.Revision, allocation.NeedRevision=need.Revision, allocation.DecisionJSON=data.%ToJSON()
         Do ..Save(need), ..Save(allocation), ids.%Push(""_allocation.%Id())
-        Do ..Notify(need.ContactActorId,allocation,"Food invitation: "_quantity_" meal boxes", "Please respond to invitation "_allocation.%Id()_" before "_##class(Allfedo.Policy).ISO(expiry)_". This is a temporary hold. Collection still needs a named collector and a confirmed trip.")
+        Do ..Notify(need.ContactActorId,allocation,"Food invitation: "_quantity_" meal boxes", "Please respond to invitation "_allocation.%Id()_" before "_##class(Allfedo.Policy).ISO(invitationExpiry)_". This is a temporary hold. Collection still needs a named collector and a confirmed trip.")
         Do ..Event(actor,"invitation_held",allocation.%Id(),request)
     }
     Set offer.Revision=offer.Revision+1
@@ -156,6 +177,9 @@ ClassMethod AllocationChange(actor As Allfedo.Record.Actor, action As %String, d
     Do ..Require($IsObject(allocation)&&(allocation.NetworkId=actor.NetworkId),"This invitation is outside your network.")
     Do ..Require(allocation.Revision=data.revision,"The invitation changed. Read its current version before acting.")
     Set offer=..Open("Allfedo.Record.Offer",allocation.OfferId), need=..Open("Allfedo.Record.Need",allocation.NeedId)
+    If $ListFind($ListBuild("accept","confirm_transport","handoff"),action) {
+        Do ..Require((##class(Allfedo.Facts).FoodState(offer)="open")&&(##class(Allfedo.Facts).NeedState(need)="open"),"The current food, site, or receiving facts need review before this step.")
+    }
     If action="accept" {
         Do ..Require((actor.Role="recipient")&&(actor.OrganizationId=need.OrganizationId),"Only this receiving organization can accept.")
         Do ..Require((allocation.State="held")&&(now<allocation.HoldUntil),"This invitation is no longer open for acceptance.")
@@ -184,8 +208,9 @@ ClassMethod AllocationChange(actor As Allfedo.Record.Actor, action As %String, d
         Do ..Require(actor.Role="collector","The named collector must confirm their own trip.")
         Do ..Require(allocation.State="accepted","Transport belongs to an accepted food request.")
         Do ..Require((offer.State="open")&&(allocation.CollectorActorId=actor.%Id())&&'allocation.TransportConfirmed,"Only the assigned collector can confirm this trip; changed food facts need review.")
+        Do ..Require(offer.Packaging'="","Ask the kitchen to confirm packaging and carrying details before agreeing transport.")
         Set pickup=##class(Allfedo.Policy).Instant(data."pickup_at"), arrival=##class(Allfedo.Policy).Instant(data."arrival_by")
-        Do ..Require((pickup>=now)&&(pickup>=offer.ReadyAt)&&(pickup<offer.CollectBy)&&(arrival>pickup)&&(arrival<need.ReceivingUntil),"The proposed trip must fit the food and receiving windows.")
+        Do ..Require((pickup>=now)&&(pickup>=offer.ReadyAt)&&(pickup<offer.CollectBy)&&(arrival>pickup)&&(arrival<need.ReceivingUntil)&&(arrival<=offer.HandlingUntil),"The proposed trip must fit the food and receiving windows.")
         Do ..Require((+data.capacity>=allocation.Quantity)&&data."handling_accepted","Confirm enough transport capacity and acceptance of the food handling requirements.")
         Do ..CollectorAvailable(actor.%Id(),allocation.%Id(),pickup,arrival,now)
         Set allocation.CollectorActorId=actor.%Id(), allocation.PickupAt=pickup, allocation.ArrivalBy=arrival, allocation.TransportConfirmed=1, allocation.State="ready"
@@ -247,15 +272,26 @@ ClassMethod Snapshot(actorId As %String, offerId As %String) As %DynamicObject
     Set actor=..Actor(actorId), offer=..Open("Allfedo.Record.Offer",offerId)
     Do ..Require($IsObject(offer)&&(offer.NetworkId=actor.NetworkId)&&(actor.Role="coordinator"),"Only an authorized coordinator can plan this offer.")
     Do ..ConfirmedSource(offer.SourceId,offer.NetworkId,offer.OrganizationId,"offer_confirmation")
-    Set food={"id":(""_offer.%Id()),"network_id":(offer.NetworkId),"revision":(offer.Revision),"available_quantity":(""_$Select(offer.State="open":offer.CurrentQuantity-offer.HeldQuantity-offer.CommittedQuantity-offer.CollectedQuantity,1:0)),"unit":(offer.Unit),"ready_at":(##class(Allfedo.Policy).ISO(offer.ReadyAt)),"collect_by":(##class(Allfedo.Policy).ISO(offer.CollectBy)),"holding":(offer.Holding),"state":(offer.State)}
+    Set foodState=##class(Allfedo.Facts).FoodState(offer)
+    Set food={"id":(""_offer.%Id()),"network_id":(offer.NetworkId),"revision":(offer.Revision),"available_quantity":(""_$Select(foodState="open":offer.CurrentQuantity-offer.HeldQuantity-offer.CommittedQuantity-offer.CollectedQuantity,1:0)),"unit":(offer.Unit),"ready_at":(##class(Allfedo.Policy).ISO(offer.ReadyAt)),"collect_by":(##class(Allfedo.Policy).ISO(offer.CollectBy)),"holding":(offer.Holding),"state":(foodState)}
+    If offer.HandlingUntil="" { Do food.%Set("handling_until","","null") } Else { Set food."handling_until"=##class(Allfedo.Policy).ISO(offer.HandlingUntil) }
+    If offer.Holding="" Do food.%Set("holding","","null")
+    Set food.packaging=offer.Packaging
     Set food."source_ids"=[(""_offer.SourceId)]
+    If (offer.OriginalSourceId'="")&&(offer.OriginalSourceId'=offer.SourceId) {
+        Do ..ConfirmedSource(offer.OriginalSourceId,offer.NetworkId,offer.OrganizationId,"offer_confirmation")
+        Do food."source_ids".%Push(""_offer.OriginalSourceId,"string")
+    }
     Set food."present_allergens"=..ParseArray(offer.PresentAllergensJSON), food."assessed_allergens"=..ParseArray(offer.AssessedAllergensJSON)
     Set needs=[], query=##class(%SQL.Statement).%ExecDirect(,"SELECT ID FROM Allfedo_Record.Need WHERE NetworkId=? ORDER BY ID",actor.NetworkId)
     Do ..QueryOK(query)
     While query.%Next() {
         Set need=..Open("Allfedo.Record.Need",query.ID)
         Do ..ConfirmedSource(need.SourceId,need.NetworkId,need.OrganizationId,"need_confirmation")
-        Set item={"id":(""_need.%Id()),"organization_id":(need.OrganizationId),"network_id":(need.NetworkId),"revision":(need.Revision),"remaining_quantity":(""_(need.RequestedQuantity-need.HeldQuantity-need.CommittedQuantity)),"unit":(need.Unit),"receiving_until":(##class(Allfedo.Policy).ISO(need.ReceivingUntil)),"confirmed_until":(##class(Allfedo.Policy).ISO(need.ConfirmedUntil))}
+        Set remaining=need.RequestedQuantity-need.HeldQuantity-need.CommittedQuantity, needState=##class(Allfedo.Facts).NeedState(need)
+        If (remaining<0)||(needState'="open") Set remaining=0
+        Set item={"id":(""_need.%Id()),"organization_id":(need.OrganizationId),"network_id":(need.NetworkId),"revision":(need.Revision),"remaining_quantity":(""_remaining),"unit":(need.Unit),"receiving_until":(##class(Allfedo.Policy).ISO(need.ReceivingUntil)),"confirmed_until":(##class(Allfedo.Policy).ISO(need.ConfirmedUntil))}
+        Set item.state=needState
         Set item."source_ids"=[(""_need.SourceId)]
         Set item."excluded_allergens"=..ParseArray(need.ExcludedAllergensJSON), item."accepted_holding"=..ParseArray(need.AcceptedHoldingJSON)
         Do needs.%Push(item)

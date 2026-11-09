@@ -54,7 +54,7 @@ For development, a local Mailpit inbox receives actual test emails. A real deplo
 | Notification outbox | A saved delivery intention, stable ID, case revision, destination, attempts, next attempt, delivery state |
 | Exception | Specific obstacle, affected quantity/commitment, responsible person, due time, resolution and source |
 
-Several food lots may belong to one kitchen offer. Keep units explicit. The first automatic path uses meal boxes; a tray or kilogram is not silently converted into a meal count. Unsupported or uncertain conversions require coordinator input with a recorded source.
+Each offer represents one food lot in this release. Create separate offers for food with different facts. Keep units explicit: a tray or kilogram is not silently converted into meal boxes.
 
 Need is shared across offers. If a shelter needs 50 boxes, commitments from all kitchens must consume that same need. Collector availability is also shared; one person cannot be automatically confirmed for overlapping trips.
 
@@ -66,12 +66,14 @@ The server applies a proposed invitation in one short database transaction:
 
 1. Verify the authenticated caller and intended action.
 2. Check the current offer, need, and proposal revisions and deadlines.
-3. Conditionally increase the lot's held quantity only if enough is available.
-4. Conditionally increase the need's held quantity only if receiving capacity remains.
+3. Increase the lot's held quantity only if enough is available.
+4. Increase the need's held quantity only if receiving capacity remains.
 5. Save the allocation, command outcome, event, and notification intention.
 6. Commit everything together; otherwise roll it all back.
 
-Check affected-row counts after conditional SQL updates. Update multiple records in a stable order, handle contention, and return a clear changed-capacity result. Never read a count and decrement later without protection. Never hold a database transaction while calling a model, waiting for a person, or sending email.
+The implementation sorts and acquires native locks for the affected food and needs, then reloads current objects before changing them in one transaction. A temporary busy result can be retried with the same request ID. All application changes use `Allfedo.Rescue.Execute`; direct database edits bypass these guarantees. No transaction spans a model call, human wait, or email send.
+
+IRIS saves object fields in numbered positions. Keep the native `Storage` blocks in record source and append new positions rather than reusing old ones. Application code and partner data use separate databases, so the sign-in gateway can read code without reading food records. Existing records were checked after this split.
 
 Example: two kitchens each propose 35 boxes to a shelter with capacity 50. After the first hold, the second 35-box request must fail its current-capacity check. The next plan can offer at most 15 there. An old agent proposal cannot override the new state.
 

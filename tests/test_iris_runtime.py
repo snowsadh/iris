@@ -133,6 +133,7 @@ class NativeProbeContractTests(unittest.TestCase):
         self.version = "IRIS for UNIX (Ubuntu Server LTS for x86-64 Containers) 2027.1.0AI (Build 109U)"
         self.flags = {"AGENT": "1", "PROVIDER": "1", "TOOLSET": "1"}
         self.session_exit_code = 0
+        self.session_output_prefix = ""
         self.timeouts_left = 0
 
     def run_command(self, command, **kwargs):
@@ -145,13 +146,18 @@ class NativeProbeContractTests(unittest.TestCase):
         if command[1] == "inspect":
             return subprocess.CompletedProcess(command, 0, self.container_image + "\n", "")
         if command[1] == "exec":
-            output = "FOOD_RESCUE_VERSION=" + self.version + "\r\n"
+            output = self.session_output_prefix + "FOOD_RESCUE_VERSION=" + self.version + "\r\n"
             output += "".join(f"FOOD_RESCUE_{name}={value}\r\n" for name, value in self.flags.items())
             return subprocess.CompletedProcess(command, self.session_exit_code, output, "")
         raise AssertionError(f"Unexpected command: {command}")
 
     def advance_clock(self, seconds):
         self.clock += seconds
+
+    def test_terminal_error_cannot_pass_despite_zero_exit_and_later_success_markers(self):
+        self.session_output_prefix = "<SYNTAX>\r\n"
+        with self.assertRaisesRegex(RuntimeError, "ObjectScript error"):
+            self.verify()
 
     def verify(self, timeout=4):
         with patch.object(runtime.subprocess, "run", side_effect=self.run_command), \

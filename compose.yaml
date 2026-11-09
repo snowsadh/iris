@@ -31,6 +31,7 @@ services:
       - iris-data:/durable
       - ./src/Allfedo:/opt/allfedo/Allfedo:ro
       - ./src/python:/opt/allfedo/python:ro
+      - ./src/web:/opt/allfedo/web:ro
 
   mailpit:
     image: axllent/mailpit:v1.27.4

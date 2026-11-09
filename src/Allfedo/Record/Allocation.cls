@@ -25,4 +25,82 @@ Index ByOffer On OfferId;
 Index ByNeed On NeedId;
 Index ByCollector On (CollectorActorId, PickupAt, ArrivalBy);
 Index DueHolds On (State, HoldUntil);
+
+Storage Default
+{
+<Data name="AllocationDefaultData">
+<Value name="1">
+<Value>%%CLASSNAME</Value>
+</Value>
+<Value name="2">
+<Value>NetworkId</Value>
+</Value>
+<Value name="3">
+<Value>OfferId</Value>
+</Value>
+<Value name="4">
+<Value>NeedId</Value>
+</Value>
+<Value name="5">
+<Value>Quantity</Value>
+</Value>
+<Value name="6">
+<Value>Unit</Value>
+</Value>
+<Value name="7">
+<Value>State</Value>
+</Value>
+<Value name="8">
+<Value>HoldUntil</Value>
+</Value>
+<Value name="9">
+<Value>Revision</Value>
+</Value>
+<Value name="10">
+<Value>OfferRevision</Value>
+</Value>
+<Value name="11">
+<Value>NeedRevision</Value>
+</Value>
+<Value name="12">
+<Value>DecisionJSON</Value>
+</Value>
+<Value name="13">
+<Value>CollectorActorId</Value>
+</Value>
+<Value name="14">
+<Value>AssignedByActorId</Value>
+</Value>
+<Value name="15">
+<Value>PickupAt</Value>
+</Value>
+<Value name="16">
+<Value>ArrivalBy</Value>
+</Value>
+<Value name="17">
+<Value>TransportConfirmed</Value>
+</Value>
+<Value name="18">
+<Value>AcceptedByActorId</Value>
+</Value>
+<Value name="19">
+<Value>CollectedQuantity</Value>
+</Value>
+<Value name="20">
+<Value>ReceivedQuantity</Value>
+</Value>
+<Value name="21">
+<Value>UnresolvedQuantity</Value>
+</Value>
+<Value name="22">
+<Value>OutcomeNote</Value>
+</Value>
+</Data>
+<DataLocation>^Allfedo.Record.AllocationD</DataLocation>
+<DefaultData>AllocationDefaultData</DefaultData>
+<IdLocation>^Allfedo.Record.AllocationD</IdLocation>
+<IndexLocation>^Allfedo.Record.AllocationI</IndexLocation>
+<StreamLocation>^Allfedo.Record.AllocationS</StreamLocation>
+<Type>%Storage.Persistent</Type>
+}
 }

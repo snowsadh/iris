@@ -1,4 +1,7 @@
 [Actions]
 CreateResource:Name=%DB_ALLFEDO,Description="Allfedo application database"
 CreateDatabase:Name=ALLFEDO,Directory=/durable/iris/mgr/allfedo,Resource=%DB_ALLFEDO
-CreateNamespace:Name=ALLFEDO,Globals=ALLFEDO,Routines=ALLFEDO,Interop=1
+CreateResource:Name=%DB_ALLFEDO_CODE,Description="Allfedo application code"
+CreateDatabase:Name=ALLFEDO_CODE,Directory=/durable/iris/mgr/allfedo-code,Resource=%DB_ALLFEDO_CODE
+CreateNamespace:Name=ALLFEDO,Globals=ALLFEDO,Routines=ALLFEDO_CODE,Interop=1
+ModifyNamespace:Name=ALLFEDO,Routines=ALLFEDO_CODE,Interop=1

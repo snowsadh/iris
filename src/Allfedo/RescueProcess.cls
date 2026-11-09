@@ -6,7 +6,20 @@ Class Allfedo.RescueProcess Extends Ens.BusinessProcess
 Method OnRequest(request As Allfedo.Message.CommandRequest, Output response As Allfedo.Message.CommandResponse) As %Status
 {
     Set response=##class(Allfedo.Message.CommandResponse).%New()
-    If request.Action="plan_offer" {
+    If request.Action="check_plan" {
+        // Run Embedded Python in the existing trusted worker, keeping browser-user privileges narrow.
+        Set actor=##class(Allfedo.Rescue).Actor(request.ActorId)
+        Do ##class(Allfedo.Rescue).Require(actor.Role="coordinator","Only the coordinator can check a recipient plan.")
+        Set proposal=##class(Allfedo.Rescue).Parse(request.PayloadJSON)
+        Do ##class(Allfedo.Rescue).Require(proposal.%IsDefined("offer_id"),"A plan check needs the food offer ID.")
+        Set snapshot=##class(Allfedo.Rescue).Snapshot(request.ActorId,proposal."offer_id")
+        // Read only: a later explicit send must validate again under resource locks.
+        Set checked=##class(Allfedo.Rescue).Parse(##class(Allfedo.Policy).Validate(snapshot.%ToJSON(),request.PayloadJSON))
+        Do checked.%Set("check_only",1,"boolean")
+        Do checked.%Set("reservation_created",0,"boolean")
+        Set checked."checked_at"=##class(Allfedo.Policy).ISO(##class(Allfedo.Policy).Now())
+        Set response.ResultJSON=checked.%ToJSON()
+    } ElseIf request.Action="plan_offer" {
         Set actor=##class(Allfedo.Rescue).Actor(request.ActorId)
         Do ##class(Allfedo.Rescue).Require(actor.Role="coordinator","Only the coordinator can ask for a plan.")
         Set body=##class(Allfedo.Rescue).Parse(request.PayloadJSON)

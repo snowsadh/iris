@@ -20,13 +20,14 @@ class InvitationPlanTests(unittest.TestCase):
                 "id": "kitchen-lot-14", "revision": 3, "network_id": "local-network",
                 "available_quantity": "80", "unit": "meal_box", "state": "open",
                 "ready_at": "2026-11-09T17:40:00Z", "collect_by": "2026-11-09T18:20:00Z",
+                "handling_until": "2026-11-09T19:00:00Z",
                 "source_ids": ["kitchen-confirmation-3"], "holding": "chilled",
                 "present_allergens": ["milk"], "assessed_allergens": ["milk", "peanut"],
             },
             "needs": [
                 {
                     "id": "riverside-dinner", "organization_id": "riverside",
-                    "network_id": "local-network", "revision": 2,
+                    "network_id": "local-network", "revision": 2, "state": "open",
                     "remaining_quantity": "35", "unit": "meal_box",
                     "receiving_until": "2026-11-09T19:00:00Z",
                     "confirmed_until": "2026-11-09T18:30:00Z",
@@ -35,7 +36,7 @@ class InvitationPlanTests(unittest.TestCase):
                 },
                 {
                     "id": "bridge-dinner", "organization_id": "bridge-centre",
-                    "network_id": "local-network", "revision": 4,
+                    "network_id": "local-network", "revision": 4, "state": "open",
                     "remaining_quantity": "45", "unit": "meal_box",
                     "receiving_until": "2026-11-09T18:45:00Z",
                     "confirmed_until": "2026-11-09T18:30:00Z",
@@ -120,6 +121,19 @@ class InvitationPlanTests(unittest.TestCase):
         self.snapshot["offer"]["ready_at"] = "2026-11-09T18:05:00Z"
         self.assert_rejected("RECEIVING_WINDOW_ENDED", need_id="riverside-dinner")
 
+    def test_kitchen_opening_hours_cannot_extend_the_food_handling_deadline(self):
+        self.snapshot["offer"]["handling_until"] = None
+        self.assert_rejected("FOOD_INFORMATION_MISSING")
+        self.snapshot["offer"]["handling_until"] = self.snapshot["now"]
+        self.assert_rejected("FOOD_HANDLING_WINDOW_ENDED")
+        self.snapshot["offer"]["handling_until"] = "2026-11-09T18:01:00Z"
+        self.snapshot["offer"]["ready_at"] = "2026-11-09T18:01:00Z"
+        self.assert_rejected("FOOD_HANDLING_WINDOW_ENDED")
+
+    def test_changed_receiving_constraints_require_review_before_new_invitations(self):
+        self.snapshot["needs"][0]["state"] = "review_required"
+        self.assert_rejected("NEED_REQUIRES_REVIEW", need_id="riverside-dinner")
+
     def test_offsets_and_calendar_midnight_are_compared_as_instants(self):
         self.snapshot["now"] = "2026-11-10T00:25:00+06:30"
         self.assertTrue(self.validate()["ok"])
@@ -154,6 +168,15 @@ class InvitationPlanTests(unittest.TestCase):
                 self.assert_rejected("EVIDENCE_MISSING", need_id="riverside-dinner")
         row["need_id"] = "outside-network-need"
         self.assert_rejected("UNKNOWN_NEED", need_id="outside-network-need")
+
+    def test_partial_food_update_keeps_initial_quantity_and_latest_handling_evidence(self):
+        self.snapshot["offer"]["source_ids"].append("original-kitchen-quantity")
+        self.assert_rejected("EVIDENCE_MISSING", need_id="riverside-dinner")
+        for row in self.proposal["requests"]:
+            row["evidence_ids"].append("original-kitchen-quantity")
+        self.assertTrue(self.validate()["ok"])
+        self.proposal["requests"][0]["evidence_ids"].remove("kitchen-confirmation-3")
+        self.assert_rejected("EVIDENCE_MISSING", need_id="riverside-dinner")
 
     def test_meal_boxes_cannot_be_negative_fractional_or_float_inputs(self):
         for quantity in ("0", "-1", "1.5", "NaN", "1e1", "1.0001", 35, 35.0, True, None):

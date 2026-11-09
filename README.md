@@ -16,14 +16,14 @@ python3 scripts/iris_runtime.py /path/to/iris-community-2027.1.0AI.109.0-docker.
 
 The installer checks the archive's build/platform, loads and tags it locally, preserves private settings, and starts IRIS and a test email inbox. It verifies the running image, native version and AI Hub classes. An ignored `compose.override.yaml` selects the image and a separate data volume per build. A short initialization step prepares volume ownership; IRIS itself runs as its normal user.
 
-`--setup` creates the isolated `ALLFEDO` application namespace and compiles the source. It does not start the integration workflow, create partner accounts, or make a model call. To compile changes on the installed runtime, use `python3 scripts/iris_runtime.py --setup`; stop the running Production before updating its classes and start it afterward, as explained in the [native guide](tests/native/README.md).
+`--setup` creates the isolated `ALLFEDO` application namespace, compiles the source, and starts its Production. It stops an existing Allfedo Production before changing configuration or code. It creates no partner accounts and makes no model call. Use `python3 scripts/iris_runtime.py --setup` to apply source changes on the installed runtime.
 
 Local developer endpoints after successful startup:
 
 - IRIS Management Portal: <http://127.0.0.1:52773/csp/sys/UtilHome.csp>
 - Mailpit test inbox: <http://127.0.0.1:8025>
 
-The services bind to the local machine. Named volumes preserve runtime and inbox data across container replacement. Only the ObjectScript and Python source folders are mounted read-only into IRIS. Private settings and idea notes are not mounted. Port overrides are in `.env.example`.
+The services bind to the local machine. Named volumes preserve runtime and inbox data across container replacement. Only ObjectScript, Python, and browser source folders are mounted read-only into IRIS. Private settings and idea notes are not mounted. Port overrides are in `.env.example`.
 
 Repeat the archive and configuration checks:
 
@@ -33,7 +33,7 @@ docker compose config --quiet
 python3 scripts/iris_runtime.py --test
 ```
 
-The first checks cover host-side rules and installer contracts. `--test` runs real IRIS commands, two-process shared-capacity checks, and retry recovery after a temporary lock. It creates separate synthetic networks and keeps their records for inspection. It makes no model call. Compose is validated quietly to keep resolved credentials out of output.
+The first checks cover host-side rules and installer contracts. `--test` runs real IRIS commands, two-process shared-capacity checks, temporary-lock recovery, and partner/food confirmation checks. It creates separate synthetic networks and keeps their records for inspection. It makes no model call. Compose is validated quietly to keep resolved credentials out of output.
 
 ## Native workflow
 
@@ -49,7 +49,7 @@ The Python module [invitations.py](src/python/allfedo/invitations.py) checks a p
 
 A passing proposal still needs recipient acceptance and collection arrangements. This check does not reserve food. IRIS must recheck the current records inside the transaction that creates the holds.
 
-The current native release accepts whole meal boxes only. It does not infer vehicle fit or travel time. Stock changes pause further promises; complete shortage and custody resolution, richer partner details, and the browser experience remain release work.
+The current native release accepts whole meal boxes only. It does not infer vehicle fit or travel time. Partners confirm their location, entrance, time zone, food conditions, and packaging. Missing facts remain unknown; changed receiving needs preserve existing promises. Complete shortage/custody resolution and the full browser journey remain release work.
 
 ## Project guide
 

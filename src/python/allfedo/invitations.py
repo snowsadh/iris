@@ -88,6 +88,8 @@ def _read_snapshot(snapshot: dict) -> tuple[datetime, dict, dict[str, dict], set
     offer["available_quantity"] = _quantity(offer["available_quantity"], offer["unit"], "offer.available_quantity", snapshot=True)
     offer["ready_at"] = _instant(offer["ready_at"], "offer.ready_at")
     offer["collect_by"] = _instant(offer["collect_by"], "offer.collect_by")
+    if offer["handling_until"] is not None:
+        offer["handling_until"] = _instant(offer["handling_until"], "offer.handling_until")
     if offer["ready_at"] >= offer["collect_by"]:
         raise _Rejected("INVALID_SNAPSHOT", "The food must be ready before collection closes.")
     offer["source_ids"] = _strings(offer["source_ids"], "offer.source_ids", snapshot=True)
@@ -115,6 +117,7 @@ def _read_snapshot(snapshot: dict) -> tuple[datetime, dict, dict[str, dict], set
             raise _Rejected("INVALID_SNAPSHOT", "Need IDs must be unique and belong to this network.")
         need["organization_id"] = _text(need["organization_id"], "need.organization_id", snapshot=True)
         need["revision"] = _revision(need["revision"], "need.revision", snapshot=True)
+        need["state"] = _text(need["state"], "need.state", snapshot=True)
         need["unit"] = _text(need["unit"], "need.unit", snapshot=True)
         need["remaining_quantity"] = _quantity(need["remaining_quantity"], need["unit"], "need.remaining_quantity", snapshot=True)
         need["receiving_until"] = _instant(need["receiving_until"], "need.receiving_until")
@@ -135,8 +138,9 @@ def validate_invitation_plan(snapshot: dict, proposal: dict) -> dict:
 
     Snapshot: network_id, now, offer, needs, and optional automatic_units.
     The offer carries current stock, revision, unit, ready_at/collect_by,
+    handling_until (a confirmed deadline or null),
     source_ids, holding, present_allergens, assessed_allergens, and state.
-    Each need carries current shared remaining quantity, revision, unit,
+    Each need carries current shared remaining quantity, revision, state, unit,
     receiving_until/confirmed_until, source_ids, excluded_allergens and
     accepted_holding. All timestamps include a full date and UTC offset.
 
@@ -165,8 +169,11 @@ def validate_invitation_plan(snapshot: dict, proposal: dict) -> dict:
             raise _Rejected("OFFER_EXPIRED", "The collection window ended. No new invitation can be held.")
         if offer["unit"] not in automatic_units:
             raise _Rejected("UNIT_REQUIRES_REVIEW", "This unit needs an explicit supported handling/conversion decision.")
-        if offer["holding"] is None:
-            raise _Rejected("FOOD_INFORMATION_MISSING", "Ask the kitchen how the food is being held before sending requests.")
+        if offer["holding"] is None or offer["handling_until"] is None:
+            raise _Rejected("FOOD_INFORMATION_MISSING", "Ask the kitchen to confirm holding and its handling deadline before sending requests.")
+        collection_end = min(offer["collect_by"], offer["handling_until"])
+        if max(now, offer["ready_at"]) >= collection_end:
+            raise _Rejected("FOOD_HANDLING_WINDOW_ENDED", "The confirmed food-handling window leaves no time for collection.")
         requests = proposal["requests"]
         if not isinstance(requests, list) or not requests:
             raise _Rejected("INVALID_PROPOSAL", "Provide at least one request within the current candidate needs.")
@@ -183,6 +190,8 @@ def validate_invitation_plan(snapshot: dict, proposal: dict) -> dict:
                 raise _Rejected("DUPLICATE_NEED", "Combine a receiving need into one request before validation.", need_id)
             seen.add(need_id)
             need = needs[need_id]
+            if need["state"] != "open":
+                raise _Rejected("NEED_REQUIRES_REVIEW", "This receiving need changed and requires review before new invitations.", need_id)
             if _revision(request["need_revision"], "need_revision") != need["revision"]:
                 raise _Rejected("STALE_NEED", "The receiving need changed. Use its current remaining quantity.", need_id)
             if request["unit"] != offer["unit"] or need["unit"] != offer["unit"]:
@@ -207,7 +216,7 @@ def validate_invitation_plan(snapshot: dict, proposal: dict) -> dict:
             references = _strings(request["evidence_ids"], "evidence_ids")
             if references - (offer["source_ids"] | need["source_ids"]):
                 raise _Rejected("UNKNOWN_EVIDENCE", "A cited source does not belong to this offer and receiving need.", need_id)
-            if not references & offer["source_ids"] or not references & need["source_ids"]:
+            if not offer["source_ids"] <= references or not need["source_ids"] <= references:
                 raise _Rejected("EVIDENCE_MISSING", "Cite current food and receiving-need evidence for this request.", need_id)
             total += quantity
             if total > offer["available_quantity"]:
