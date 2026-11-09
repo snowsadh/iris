@@ -28,6 +28,8 @@ import { localValue, readLocal } from "../time.js";
 function needState(record) {
   if (record.state === "expired")
     return ["Receiving confirmation ended", "warning"];
+  if (record.state === "availability_review")
+    return ["Receiving availability needs fresh confirmation", "warning"];
   if (record.state === "review_required")
     return ["Changed receiving facts need review", "warning"];
   if (record.state === "needs_details")

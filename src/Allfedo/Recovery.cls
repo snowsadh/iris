@@ -127,7 +127,8 @@ ClassMethod CurrentContext(allocation As Allfedo.Record.Allocation, quantity As 
     Set pickupSite=##class(Allfedo.Facts).SiteFor(allocation.NetworkId,offer.OrganizationId), receivingSite=##class(Allfedo.Facts).SiteFor(allocation.NetworkId,need.OrganizationId), evidence={"food_source_id":(offer.SourceId),"need_source_id":(need.SourceId)}
     If $IsObject(pickupSite) Set evidence."pickup_site_id"=""_pickupSite.%Id(),evidence."pickup_site_revision"=pickupSite.Revision,evidence."pickup_site_source_id"=pickupSite.SourceId
     If $IsObject(receivingSite) Set evidence."receiving_site_id"=""_receivingSite.%Id(),evidence."receiving_site_revision"=receivingSite.Revision,evidence."receiving_site_source_id"=receivingSite.SourceId
-    Quit {"details":(details),"evidence":(evidence),"context_key":(key)}
+    Set context={"details":(details),"evidence":(evidence),"context_key":(key)}
+    Quit ##class(Allfedo.Redirect).Context(allocation,context)
 }
 
 ClassMethod TripChanged(allocation As Allfedo.Record.Allocation) As %Boolean
@@ -142,16 +143,16 @@ ClassMethod Balance(allocation As Allfedo.Record.Allocation) As %DynamicObject
 {
     Set stock=allocation.StockCommittedQuantity
     If stock="" Set stock=$Select(allocation.State="held":0,allocation.Quantity>allocation.CollectedQuantity:allocation.Quantity-allocation.CollectedQuantity,1:0)
-    Set unknown=$Select(allocation.CollectedQuantity>allocation.ReceivedQuantity+allocation.AccountedQuantity:allocation.CollectedQuantity-allocation.ReceivedQuantity-allocation.AccountedQuantity,1:0)
-    Set unmatched=$Select(allocation.ReceivedQuantity+allocation.AccountedQuantity>allocation.CollectedQuantity:allocation.ReceivedQuantity+allocation.AccountedQuantity-allocation.CollectedQuantity,1:0)
+    Set unknown=$Select(allocation.CollectedQuantity>allocation.ReceivedQuantity+allocation.AccountedQuantity+allocation.TransferredOutQuantity:allocation.CollectedQuantity-allocation.ReceivedQuantity-allocation.AccountedQuantity-allocation.TransferredOutQuantity,1:0)
+    Set unmatched=$Select(allocation.ReceivedQuantity+allocation.AccountedQuantity+allocation.TransferredOutQuantity>allocation.CollectedQuantity:allocation.ReceivedQuantity+allocation.AccountedQuantity+allocation.TransferredOutQuantity-allocation.CollectedQuantity,1:0)
     Set cannot=$Select(allocation.AccountedQuantity>allocation.SettledHandedQuantity:allocation.AccountedQuantity-allocation.SettledHandedQuantity,1:0)
-    Quit {"unhanded_quantity":(""_stock),"physical_unknown_quantity":(""_unknown),"unmatched_report_quantity":(""_unmatched),"cannot_arrive_quantity":(""_cannot),"accounted_quantity":(""_allocation.AccountedQuantity)}
+    Quit {"kitchen_handoff_quantity":(""_(allocation.CollectedQuantity-allocation.TransferredInQuantity)),"unhanded_quantity":(""_stock),"physical_unknown_quantity":(""_unknown),"unmatched_report_quantity":(""_unmatched),"cannot_arrive_quantity":(""_cannot),"accounted_quantity":(""_allocation.AccountedQuantity)}
 }
 ClassMethod RefreshCase(allocation As Allfedo.Record.Allocation)
 {
     Set query=##class(%SQL.Statement).%ExecDirect(,"SELECT Kind,COALESCE(SUM(Quantity),0) AS Total FROM Allfedo_Record.Custody WHERE AllocationId=? AND Active=1 GROUP BY Kind",allocation.%Id())
     Do ##class(Allfedo.Rescue).QueryOK(query)
-    Set handed=+allocation.LegacyCollectedQuantity, received=+allocation.LegacyReceivedQuantity, accounted=0, lost=0, rejected=0, returned=0, disposed=0
+    Set handed=+allocation.LegacyCollectedQuantity+allocation.TransferredInQuantity, received=+allocation.LegacyReceivedQuantity, accounted=0, lost=0, rejected=0, returned=0, disposed=0
     While query.%Next() {
         Set kind=$ZCONVERT(query.Kind,"L")
         If kind="handoff" Set handed=handed+query.Total
@@ -181,8 +182,12 @@ ClassMethod RefreshCase(allocation As Allfedo.Record.Allocation)
         Set allocation.State="closed_unconfirmed"
     } ElseIf (+allocation.HeldQuantity>0) {
         Set allocation.State=$Select(handed>0:"custody_review",1:"held")
+    } ElseIf (allocation.TransferredOutQuantity>0)&&(stock=0)&&(unknown=0)&&(cannot=0) {
+        Set allocation.State="redirected"
     } ElseIf (stock=0)&&(unknown=0)&&(cannot=0)&&(allocation.Quantity<=received) {
         Set allocation.State=$Select((allocation.Quantity=0)&&(handed=0):"cancelled",original>received:"partial_closed",1:"received")
+    } ElseIf (allocation.DestinationIssueSourceId'="")&&(unknown>0) {
+        Set allocation.State="destination_issue"
     } ElseIf (cannot>0)||((received+accounted)>0) {
         Set allocation.State="receipt_issue"
     } ElseIf handed>0 {
@@ -200,7 +205,8 @@ ClassMethod RebuildCommitments(offer As Allfedo.Record.Offer, need As Allfedo.Re
     While query.%Next() {
         Set item=##class(Allfedo.Rescue).Open("Allfedo.Record.Allocation",query.ID), h=item.HeldQuantity
         If h="" Set h=$Select(item.State="held":item.Quantity,1:0)
-        Set held=held+h, stock=item.StockCommittedQuantity
+        If item.ParentAllocationId="" Set held=held+h
+        Set stock=item.StockCommittedQuantity
         If stock="" Set stock=$Select(item.AcceptedByActorId="":0,item.Quantity>item.CollectedQuantity:item.Quantity-item.CollectedQuantity,1:0)
         Set committed=committed+stock
     }
@@ -301,7 +307,7 @@ ClassMethod RecipientKey(context As %DynamicObject) As %String
 }
 
 /// Hard gates for an existing promise. Consent never overrides allergen, handling, or receiving limits.
-ClassMethod AssertCompatible(offer As Allfedo.Record.Offer, need As Allfedo.Record.Need, arrival As %BigInt)
+ClassMethod AssertCompatible(offer As Allfedo.Record.Offer, need As Allfedo.Record.Need, arrival As %BigInt, inTransit As %Boolean = 0)
 {
     Do ##class(Allfedo.Rescue).ConfirmedSource(offer.SourceId,offer.NetworkId,offer.OrganizationId,"offer_confirmation")
     Do ##class(Allfedo.Rescue).ConfirmedSource(need.SourceId,need.NetworkId,need.OrganizationId,"need_confirmation")
@@ -322,13 +328,14 @@ ClassMethod AssertCompatible(offer As Allfedo.Record.Offer, need As Allfedo.Reco
     For index=0:1:accepted.%Size()-1 { If accepted.%Get(index)=offer.Holding Set capable=1 }
     Do ##class(Allfedo.Rescue).Require(capable,"This receiving partner has not confirmed it can handle the declared holding condition.")
     Set pickup=..SiteDetails(offer.NetworkId,offer.OrganizationId),destination=..SiteDetails(need.NetworkId,need.OrganizationId)
-    Do ##class(Allfedo.Rescue).Require((pickup."contact_name"'="")&&(destination."contact_name"'=""),"A partner's named site contact is no longer active. Ask that partner to confirm its contact details.")
+    Do ##class(Allfedo.Rescue).Require((inTransit||(pickup."contact_name"'=""))&&(destination."contact_name"'=""),"A required partner contact is no longer active. Ask the receiving team, or the kitchen before collection, to confirm its contact details.")
 }
 
 ClassMethod RecordAgreement(actor As Allfedo.Record.Actor, allocation As Allfedo.Record.Allocation, data As %DynamicObject, first As %Boolean = 0)
 {
     Set context=..CurrentContext(allocation),offer=##class(Allfedo.Rescue).Open("Allfedo.Record.Offer",allocation.OfferId),need=##class(Allfedo.Rescue).Open("Allfedo.Record.Need",allocation.NeedId)
-    Do ..AssertCompatible(offer,need,allocation.ArrivalBy)
+    Do ##class(Allfedo.Rescue).Require('##class(Allfedo.Redirect).HandlingBlocked(allocation),"A reported handling break blocks another delivery agreement; record its actual return, quarantine or disposal.")
+    Do ..AssertCompatible(offer,need,allocation.ArrivalBy,(allocation.ParentAllocationId'=""))
     Do ##class(Allfedo.Rescue).Require(context."context_key"=data."context_key","Pickup or receiving instructions changed while you reviewed them. Read the current details and confirm again.")
     Do ##class(Allfedo.Rescue).Require(allocation.ConsentContextKey=..RecipientKey(context),"The receiving partner must confirm the changed food or destination facts before this agreement.")
     Set context."pickup_at"=##class(Allfedo.Policy).ISO(allocation.PickupAt),context."arrival_by"=##class(Allfedo.Policy).ISO(allocation.ArrivalBy),context."collector_actor_id"=""_actor.%Id(),context."collector_name"=actor.DisplayName,context."agreed_at"=##class(Allfedo.Policy).NowISO()
@@ -351,7 +358,7 @@ ClassMethod AcknowledgeTrip(actor As Allfedo.Record.Actor, data As %DynamicObjec
     Do ..Prepare(offer,allocation)
     Do ##class(Allfedo.Rescue).Require((allocation.Quantity>allocation.ReceivedQuantity)&&(allocation.State'="cancelled")&&(allocation.State'="closed_unconfirmed"),"There is no current agreed delivery left to confirm.")
     Do ##class(Allfedo.Rescue).Require((need.ReceivingFrom'="")&&(arrival>=need.ReceivingFrom)&&(arrival>now)&&(arrival<need.ReceivingUntil)&&(arrival<=offer.HandlingUntil)&&data."handling_accepted","The changed arrival and handling agreement must fit the current confirmed limits.")
-    Set load=allocation.StockCommittedQuantity+allocation.CollectedQuantity-allocation.ReceivedQuantity-allocation.AccountedQuantity
+    Set load=allocation.StockCommittedQuantity+allocation.CollectedQuantity-allocation.ReceivedQuantity-allocation.AccountedQuantity-allocation.TransferredOutQuantity
     Do ##class(Allfedo.Rescue).Require((+data.capacity>=load)&&(offer.Packaging'=""),"Confirm actual carrying details and enough capacity for the remaining load.")
     Do ##class(Allfedo.Rescue).CollectorAvailable(actor.%Id(),allocation.%Id(),$Select(allocation.StockCommittedQuantity>0:allocation.PickupAt,1:now),arrival,now)
     Set allocation.ArrivalBy=arrival
@@ -539,7 +546,11 @@ ClassMethod View(allocation As Allfedo.Record.Allocation, actor As Allfedo.Recor
         Set change=##class(Allfedo.Rescue).Open("Allfedo.Record.ChangeRequest",allocation.PendingChangeId)
         If $IsObject(change) Set view.change=..ChangeView(change)
     }
-    Set view."custody_history"=..History(allocation.OfferId,actor,allocation.%Id())
+    Set view."custody_history"=..History(allocation.OfferId,actor,allocation.%Id()),view.redirect=##class(Allfedo.Redirect).View(allocation,actor)
+    Set view."current_context"=##class(Allfedo.Redirect).PublicContext(allocation,view."current_context",actor)
+    If view.%GetTypeOf("original_trip")'="null" Set view."original_trip"=##class(Allfedo.Redirect).PublicContext(allocation,view."original_trip",actor)
+    If view.%GetTypeOf("agreed_trip")'="null" Set view."agreed_trip"=##class(Allfedo.Redirect).PublicContext(allocation,view."agreed_trip",actor)
+    If view.%GetTypeOf("change")'="null" Set view.change.context=##class(Allfedo.Redirect).PublicContext(allocation,view.change.context,actor)
     Quit view
 }
 

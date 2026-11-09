@@ -1,7 +1,7 @@
 /// Real HTTP authorization checks. Passwords exist only in memory; temporary users are removed afterward.
 Class AllfedoWebScenario Extends %RegisteredObject
 {
-ClassMethod Prepare(credentialsJSON As %String) As %String
+ClassMethod Prepare(credentialsJSON As %String, redirectOnly As %Boolean = 0) As %String
 {
     Set credentials=##class(Allfedo.Rescue).Parse(credentialsJSON)
     Do ##class(AllfedoScenario).Setup(.ids), ##class(AllfedoScenario).Setup(.other)
@@ -20,14 +20,16 @@ ClassMethod Prepare(credentialsJSON As %String) As %String
     Set held=##class(AllfedoScenario).Run(ids.coordinator,"http-hold-one","apply_plan",plan)
     Do ##class(Allfedo.Rescue).Require(held.ok,"The first HTTP fixture invitation failed.")
     Set ids.allocation=held."allocation_ids".%Get(0)
-    Set result=##class(AllfedoScenario).Run(ids.recipient,"http-accept-one","accept",{"allocation_id":(ids.allocation),"revision":1,"quantity":"20"})
+    Set result=##class(AllfedoScenario).Run(ids.recipient,"http-accept-one","accept",{"allocation_id":(ids.allocation),"revision":1,"quantity":"20","context_key":(##class(AllfedoScenario).ContextKey(ids.allocation))})
     Do ##class(Allfedo.Rescue).Require(result.ok,"The HTTP fixture acceptance failed.")
     Set result=##class(AllfedoScenario).Run(ids.coordinator,"http-assign-one","assign_collector",{"allocation_id":(ids.allocation),"revision":2,"collector_actor_id":(ids.collector)})
     Do ##class(Allfedo.Rescue).Require(result.ok,"The HTTP fixture assignment failed.")
+    Set ids."foreign_offer"=other.offer
+    If redirectOnly Quit ids.%ToJSON()
     Set plan=##class(AllfedoScenario).Plan(ids.coordinator,ids.offer,ids."second_need","15")
     Set held=##class(AllfedoScenario).Run(ids.coordinator,"http-hold-two","apply_plan",plan)
     Do ##class(Allfedo.Rescue).Require(held.ok,"The second HTTP fixture invitation failed.")
-    Set ids."other_allocation"=held."allocation_ids".%Get(0), ids."foreign_offer"=other.offer
+    Set ids."other_allocation"=held."allocation_ids".%Get(0)
     // A clearly labeled saved-read fixture. No model/provider execution is claimed or required.
     Set snapshot=##class(Allfedo.Rescue).Snapshot(ids.coordinator,ids.offer)
     Set proposal=##class(AllfedoScenario).Plan(ids.coordinator,ids.offer,ids.need,"5")
@@ -92,7 +94,7 @@ ClassMethod CheckCleanupCollision(username As %String, password As %String) As %
     Quit 1
 }
 
-ClassMethod Run(baseURL As %String = "http://127.0.0.1:52773/allfedo/api") As %String [ Language = python ]
+ClassMethod Run(baseURL As %String = "http://127.0.0.1:52773/allfedo/api", redirectOnly As %Boolean = 0) As %String [ Language = python ]
 {
     import base64
     from datetime import datetime, timedelta, timezone
@@ -150,7 +152,107 @@ ClassMethod Run(baseURL As %String = "http://127.0.0.1:52773/allfedo/api") As %S
     fixture = None
     try:
         require(iris.cls("AllfedoWebScenario").CheckCleanupCollision("allfedo-web-test-" + suffix + "-collision", secrets.token_urlsafe(32) + "Aa1!"), "Failed setup cannot delete a colliding account without its exact test ownership marker")
-        fixture = json.loads(iris.cls("AllfedoWebScenario").Prepare(credentials))
+        fixture = json.loads(iris.cls("AllfedoWebScenario").Prepare(credentials, redirectOnly))
+        if redirectOnly:
+            parent_path = "/allocations/" + str(fixture["allocation"])
+            status, body = request(parent_path, "collector")
+            parent = body["record"]
+            pickup_at = (datetime.now(timezone.utc) + timedelta(minutes=1)).isoformat()
+            arrival_by = (datetime.now(timezone.utc) + timedelta(minutes=20)).isoformat()
+            status, result = send("collector", "confirm_transport", {"allocation_id": parent["id"], "revision": parent["revision"], "pickup_at": pickup_at, "arrival_by": arrival_by, "capacity": "20", "handling_accepted": True, "context_key": parent["recovery"]["current_context"]["context_key"]})
+            require(status == 200 and result.get("ok"), "Redirect fixture has an actual collector agreement")
+            status, result = send("kitchen", "handoff", {"allocation_id": parent["id"], "revision": result["revision"], "quantity": "20", "occurred_at": instant(), "note": "Twenty sealed boxes handed to the agreed collector."})
+            require(status == 200 and result.get("physical_report_saved"), "Redirect starts with a real saved twenty-box kitchen handoff")
+            private_location = "Outside the original receiving team's private loading gate"
+            private_note = "Original access contact is unavailable; this note belongs to the blocked destination."
+            issue = {"allocation_id": parent["id"], "revision": result["revision"], "quantity_in_custody": "20", "current_location": private_location, "handling_maintained": True, "note": private_note}
+            status, rejected = send("coordinator", "record_destination_issue", issue)
+            require(status == 422, "Coordinator cannot invent the collector's live custody attestation")
+            status, reported = send("collector", "record_destination_issue", issue)
+            require(status == 200 and reported.get("ok"), "Assigned collector records a blocked destination and the food actually in custody")
+            status, body = request("/worklist", "coordinator")
+            require(status == 200 and any(row["kind"] == "resolve_destination" and row.get("allocation", {}).get("id") == parent["id"] for row in body["items"]), "A destination issue appears immediately before the planned arrival deadline")
+            status, body = request(parent_path, "recipient")
+            visible_issue = body["record"]["recovery"]["redirect"].get("issue")
+            require(private_location not in json.dumps(visible_issue) and private_note not in json.dumps(visible_issue), "Recipient views omit the collector's private location and issue note")
+            status, body = request(parent_path, "coordinator")
+            parent = body["record"]
+            require(any(event["kind"] == "destination_unavailable" and event.get("quantity_in_custody") == "20" for event in body.get("history", [])), "Coordinator history names the actual destination report and its attested quantity")
+            original_destination = parent["need"]["site"]
+            status, before = request("/offers/" + str(fixture["offer"]), "coordinator")
+            status, target = request("/needs/" + str(fixture["second_need"]), "coordinator")
+            target = target["record"]
+            redirect = {"allocation_id": parent["id"], "revision": parent["revision"], "target_need_id": target["id"], "target_need_revision": target["revision"], "quantity": "15", "reason": "The original team cannot receive; offer fifteen still-handled boxes to another approved receiving team."}
+            status, rejected = send("collector", "redirect", redirect)
+            require(status == 422, "Collector cannot approve a different receiving partner")
+            status, offered = send("coordinator", "redirect", redirect)
+            require(status == 200 and offered.get("ok"), "Coordinator creates an addressed redirect invitation from verified custody")
+            child_id = str(offered["child_allocation_id"])
+            child_path = "/allocations/" + child_id
+            status, after = request("/offers/" + str(fixture["offer"]), "coordinator")
+            require(after["record"]["held_quantity"] == before["record"]["held_quantity"] and after["record"]["collected_quantity"] == "20", "Redirect invitation holds receiving capacity without reserving kitchen stock or recording another handoff")
+            status, body = request(parent_path, "coordinator")
+            parent = body["record"]
+            require(parent["quantity"] == "20" and parent["recovery"]["redirect"]["pending_quantity"] == "15", "Pending redirect reserves custody while the original promise stays intact")
+            status, target_three = request("/needs/" + str(fixture["third_need"]), "coordinator")
+            target_three = target_three["record"]
+            status, rejected = send("coordinator", "redirect", dict(redirect, revision=parent["revision"], target_need_id=target_three["id"], target_need_revision=target_three["revision"], quantity="6"))
+            require(status == 422, "Competing redirect cannot reserve custody already held for another reply")
+            status, hidden = request(parent_path, "second_recipient")
+            require(status == 404, "New receiving partner cannot open the original partner's private case")
+            status, hidden = request(child_path, "recipient")
+            require(status == 404, "Original receiving partner cannot open the new partner's addressed child case")
+            status, body = request(child_path, "second_recipient")
+            child = body["record"]
+            serialized = json.dumps(body)
+            require(status == 200 and child["recovery"]["redirect"]["parent_readable"] is False and original_destination["address"] not in serialized and original_destination["name"] not in serialized and private_location not in serialized and private_note not in serialized, "New recipient reads its invitation without the original destination or private custody details")
+            status, rejected = send("second_recipient", "accept", {"allocation_id": child_id, "revision": child["revision"], "quantity": "10", "context_key": "obsolete-context"})
+            require(status == 422, "Redirect acceptance rejects an obsolete offered context")
+            status, accepted = send("second_recipient", "accept", {"allocation_id": child_id, "revision": child["revision"], "quantity": "10", "context_key": child["recovery"]["current_context"]["context_key"]})
+            require(status == 200 and accepted.get("ok"), "New receiving partner can accept a partial redirect using the current offered context")
+            status, body = request(child_path, "collector")
+            child = body["record"]
+            require(child["state"] == "collected" and child["recovery"]["redirect"]["transferred_in_quantity"] == "10" and child["recovery"]["stock_committed_quantity"] == "0", "Accepted child already has custody and requires no second kitchen pickup")
+            status, body = request(parent_path, "coordinator")
+            parent = body["record"]
+            require(parent["recovery"]["redirect"]["transferred_out_quantity"] == "10" and parent["recovery"]["physical_unknown_quantity"] == "10", "Parent retains the exact food still in custody after a partial transfer")
+            status, body = request("/needs/" + str(fixture["need"]), "recipient")
+            require(body["record"]["state"] == "availability_review" and body["record"]["remaining_quantity"] == "0", "Original receiving capacity stays paused until its team confirms a fresh full need")
+            status, body = request("/site", "second_recipient")
+            site = body["record"]
+            changed_site = {key: site[key] for key in ("revision", "name", "address", "entrance", "time_zone", "contact_phone")}
+            changed_site["entrance"] = "Use the new east receiving entrance."
+            status, changed = send("second_recipient", "save_site", changed_site)
+            require(status == 200 and changed.get("ok"), "New receiving team can correct its own onward delivery instructions")
+            status, changed = send("coordinator", "request_change", {"allocation_id": child_id, "revision": child["revision"], "new_quantity": "10", "reason": "The receiving entrance changed; confirm the current destination before onward delivery."})
+            require(status == 200 and changed.get("ok"), "Changed target instructions require explicit receiving confirmation")
+            status, body = request(child_path, "second_recipient")
+            pending = body["record"]["recovery"]["change"]
+            require(private_location not in json.dumps(pending["context"]) and private_note not in json.dumps(pending["context"]) and pending["context"]["details"]["destination"]["entrance"] == changed_site["entrance"], "Stored change context shows the new entrance without leaking the collector's private location")
+            status, body = request("/needs/" + target["id"], "second_recipient")
+            need = body["record"]
+            status, agreed = send("second_recipient", "respond_change", {"change_id": pending["id"], "revision": pending["revision"], "agree": True, "need_total": need["requested_quantity"], "need_revision": need["revision"], "stock_source_id": None, "note": "Confirmed the current receiving entrance and full need."})
+            require(status == 200 and agreed.get("state") == "applied", "New receiving partner confirms the changed destination before the collector agrees onward travel")
+            status, body = request(child_path, "collector")
+            child = body["record"]
+            arrival = {"allocation_id": child_id, "revision": child["revision"], "context_key": child["recovery"]["current_context"]["context_key"], "arrival_by": (datetime.now(timezone.utc) + timedelta(minutes=15)).isoformat(), "capacity": "10", "handling_accepted": True}
+            status, rejected = send("coordinator", "confirm_redirect", arrival)
+            require(status == 422, "Coordinator cannot confirm the collector's redirected arrival")
+            status, rejected = send("collector", "confirm_redirect", arrival)
+            require(status == 422, "Redirected arrival capacity must cover all unresolved food still carried in the linked trip")
+            status, confirmed = send("collector", "confirm_redirect", dict(arrival, capacity="20"))
+            require(status == 200 and confirmed.get("ok"), "Assigned collector confirms the new destination and handling without another pickup")
+            status, body = request(child_path, "second_recipient")
+            child = body["record"]
+            serialized = json.dumps(body)
+            require(original_destination["address"] not in serialized and private_location not in serialized and private_note not in serialized, "Saved redirect trip remains private from the original destination's details")
+            status, received = send("second_recipient", "receive", {"allocation_id": child_id, "revision": child["revision"], "quantity": "10", "occurred_at": instant(), "note": "Ten redirected boxes accepted by the new receiving team."})
+            require(status == 200 and received.get("physical_report_saved"), "New receiving partner records the food actually accepted")
+            status, body = request(child_path, "second_recipient")
+            require(body["record"]["received_quantity"] == "10" and body["record"]["recovery"]["physical_unknown_quantity"] == "0", "Redirected receipt closes only the child's actual custody")
+            status, after = request("/offers/" + str(fixture["offer"]), "kitchen")
+            require(after["record"]["collected_quantity"] == "20", "Completed redirect never counts the original kitchen handoff twice")
+            return json.dumps({"ok": True, "checks": checks, "count": len(checks), "fixture_network": fixture["network"], "redirect": True, "users_removed": True})
         status, body = request("/session")
         require("user" not in body, "Anonymous HTTP request receives no session data")
         status, body = request("/session", "nonmember")

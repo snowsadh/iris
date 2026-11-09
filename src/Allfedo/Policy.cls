@@ -47,7 +47,7 @@ ClassMethod Normalize(action As %String, payload As %String) As %String [ Langua
             "update_need": {"need_id", "revision", "quantity", "unit", "receiving_from", "receiving_until", "confirmed_until", "excluded_allergens", "accepted_holding", "event_at"},
             "create_need": {"quantity", "unit", "receiving_from", "receiving_until", "confirmed_until", "excluded_allergens", "accepted_holding", "event_at"},
             "apply_plan": {"offer_id", "offer_revision", "requests", "reason"},
-            "accept": {"allocation_id", "revision", "quantity"},
+            "accept": {"allocation_id", "revision", "quantity", "context_key"},
             "decline": {"allocation_id", "revision", "reason"},
             "assign_collector": {"allocation_id", "revision", "collector_actor_id"},
             "confirm_transport": {"allocation_id", "revision", "pickup_at", "arrival_by", "capacity", "handling_accepted", "context_key"},
@@ -63,6 +63,10 @@ ClassMethod Normalize(action As %String, payload As %String) As %String [ Langua
             "dispose_quarantined": {"offer_id", "revision", "quantity", "occurred_at", "note"},
             "acknowledge_trip": {"allocation_id", "revision", "context_key", "capacity", "handling_accepted", "arrival_by"},
             "resume_offer": {"offer_id", "revision"},
+            "record_destination_issue": {"allocation_id", "revision", "quantity_in_custody", "current_location", "handling_maintained", "note"},
+            "redirect": {"allocation_id", "revision", "target_need_id", "target_need_revision", "quantity", "reason"},
+            "confirm_redirect": {"allocation_id", "revision", "context_key", "arrival_by", "capacity", "handling_accepted"},
+            "release_unavailable": {"allocation_id", "revision", "stock_source_id", "quantity", "reason"},
             "expire_hold": {"allocation_id", "revision"},
         }
         if action not in fields:
@@ -85,10 +89,10 @@ ClassMethod Normalize(action As %String, payload As %String) As %String [ Langua
                     item[name] = instant.astimezone(timezone.utc).isoformat(timespec="microseconds").replace("+00:00", "Z")
                 except (AttributeError, TypeError, ValueError, OverflowError):
                     raise ValueError(name + " needs a full date, time, and UTC offset.") from None
-            elif name in {"quantity", "capacity", "new_quantity", "on_hand_quantity", "need_total"}:
+            elif name in {"quantity", "capacity", "new_quantity", "on_hand_quantity", "need_total", "quantity_in_custody"}:
                 if not isinstance(value, str) or not re.fullmatch(r"[0-9]{1,6}", value):
                     raise ValueError(name + " must be a whole-number string, at most 999999.")
-            elif name in {"revision", "offer_revision", "need_revision"}:
+            elif name in {"revision", "offer_revision", "need_revision", "target_need_revision"}:
                 if type(value) is not int or value < (0 if action == "save_site" else 1):
                     raise ValueError(name + " must be a positive integer.")
             elif name == "holding" and value is None:
@@ -99,7 +103,7 @@ ClassMethod Normalize(action As %String, payload As %String) As %String [ Langua
             elif name in {"name", "address", "time_zone"}:
                 if not isinstance(value, str) or not value.strip() or len(value) > (1000 if name == "address" else 200):
                     raise ValueError(name + " needs the partner's real confirmed details.")
-            elif name.endswith("_id") or name in {"description", "reason", "unit", "holding", "context_key", "outcome"}:
+            elif name.endswith("_id") or name in {"description", "reason", "unit", "holding", "context_key", "outcome", "current_location"}:
                 if not isinstance(value, str) or not value.strip() or len(value) > 500:
                     raise ValueError(name + " needs nonempty text, at most 500 characters.")
             elif name == "note":
@@ -108,7 +112,7 @@ ClassMethod Normalize(action As %String, payload As %String) As %String [ Langua
             elif name in {"present_allergens", "assessed_allergens", "excluded_allergens", "accepted_holding"}:
                 if not isinstance(value, list) or len(value) > 50 or any(not isinstance(x, str) or not x.strip() or len(x) > 80 for x in value):
                     raise ValueError(name + " needs an array of short labels.")
-            elif name in {"handling_accepted", "agree"} and type(value) is not bool:
+            elif name in {"handling_accepted", "handling_maintained", "agree"} and type(value) is not bool:
                 raise ValueError(name + " must be true or false.")
         if action == "record_disposition" and item["outcome"] not in {"lost", "discarded", "returned_to_kitchen", "rejected_at_site"}:
             raise ValueError("Choose lost, discarded, returned_to_kitchen, or rejected_at_site.")

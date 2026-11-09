@@ -32,7 +32,7 @@ def main() -> None:
     token = secrets.token_hex(6)
     accounts = {role: {"username": f"allfedo-web-test-{token}-{role}",
                        "password": secrets.token_urlsafe(32) + "9!aA"}
-                for role in ("coordinator", "kitchen", "recipient", "collector")}
+                for role in ("coordinator", "kitchen", "recipient", "collector", "recipient2")}
     # Keep each interactive command complete. An earlier terminal error must fail the whole step.
     load = 'Set sc=1\n' + '\n'.join(f'If sc Set sc=$SYSTEM.OBJ.Load("/tmp/{filename}","ck")'
                      for filename in ("AllfedoScenario.cls", "AllfedoWebScenario.cls", "AllfedoBrowserScenario.cls"))

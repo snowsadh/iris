@@ -58,7 +58,7 @@ ClassMethod TestCommands() As %DynamicObject
     Set need=##class(Allfedo.Record.Need).%OpenId(ids.need)
     Do ..Check(need.HeldQuantity=50,"Both kitchens must consume one shared need.")
     Set allocationId=original."allocation_ids".%Get(0)
-    Set accepted=..Run(ids.recipient,"accept-thirty","accept",{"allocation_id":(allocationId),"revision":1,"quantity":"30"})
+    Set accepted=..Run(ids.recipient,"accept-thirty","accept",{"allocation_id":(allocationId),"revision":1,"quantity":"30","context_key":(..ContextKey(allocationId))})
     Do ..Check(accepted.ok&&(accepted.state="accepted"),"Recipient acceptance should convert the hold.")
     Set now=##class(Allfedo.Policy).Now()
     Set unassigned=..Run(ids.collector,"cannot-self-claim","confirm_transport",{"allocation_id":(allocationId),"revision":2,"pickup_at":(##class(Allfedo.Policy).ISO(now+60)),"arrival_by":(##class(Allfedo.Policy).ISO(now+1800)),"capacity":"30","handling_accepted":true,"context_key":(..ContextKey(allocationId))})
@@ -96,7 +96,7 @@ ClassMethod TestFacts() As %DynamicObject
     Do ..Check(confirmed.ok&&(confirmed.state="open"),"Known food conditions can open the offer while transport packaging remains a separate gap.")
     Set plan=..Plan(ids.coordinator,offerId,ids.need,"10"), held=..Run(ids.coordinator,"send-known-food","apply_plan",plan)
     Do ..Check(held.ok,"Confirmed food can be held for the current receiving need.")
-    Set allocationId=held."allocation_ids".%Get(0), accepted=..Run(ids.recipient,"accept-known-food","accept",{"allocation_id":(allocationId),"revision":1,"quantity":"10"})
+    Set allocationId=held."allocation_ids".%Get(0), accepted=..Run(ids.recipient,"accept-known-food","accept",{"allocation_id":(allocationId),"revision":1,"quantity":"10","context_key":(..ContextKey(allocationId))})
     Do ..Check(accepted.ok,"The receiving partner must explicitly accept the food.")
     Set assigned=..Run(ids.coordinator,"assign-known-food-trip","assign_collector",{"allocation_id":(allocationId),"revision":2,"collector_actor_id":(ids.collector)})
     Do ..Check(assigned.ok,"The coordinator must assign this collection.")
@@ -227,12 +227,76 @@ ClassMethod TestRecovery() As %DynamicObject
     Quit {"ok":true,"checks":"known loss and recipient-confirmed replacement, original promises, zero receipt, correction history, future rejection, quarantine excluded from stock, fractional count ordering"}
 }
 
+/// Redirect preserves one physical kitchen handoff while a new receiving partner makes its own promise.
+ClassMethod TestRedirect() As %DynamicObject
+{
+    Do ..Setup(.ids)
+    Set parentId=..ReadyCase(ids,"20")
+    Set handed=..Run(ids.kitchen,"redirect-original-handoff","handoff",{"allocation_id":(parentId),"revision":4,"quantity":"20","occurred_at":(##class(Allfedo.Policy).NowISO()),"note":"Twenty boxes physically handed to the collector."})
+    Do ..Check(handed.ok,"The redirect needs actual recorded food custody.")
+    Set original=##class(Allfedo.Rescue).Open("Allfedo.Record.Allocation",parentId),oldTrip=original.OriginalTripJSON
+    Set oldContact=##class(Allfedo.Rescue).Open("Allfedo.Record.Actor",ids.recipient),oldContact.Active=0
+    Do ##class(Allfedo.Rescue).Save(oldContact)
+    Set oldKitchen=##class(Allfedo.Rescue).Open("Allfedo.Record.Actor",ids.kitchen),oldKitchen.Active=0
+    Do ##class(Allfedo.Rescue).Save(oldKitchen)
+    Set issue=..Run(ids.collector,"destination-closed","record_destination_issue",{"allocation_id":(parentId),"revision":5,"quantity_in_custody":"20","current_location":"Parked at the original site's private delivery entrance","handling_maintained":true,"note":"Original receiving contact cannot be reached; no food was handed to that site."})
+    Do ..Check(issue.ok&&(issue.state="destination_issue"),"A current destination failure must create an immediate coordinator task.")
+    Set target=##class(Allfedo.Rescue).Open("Allfedo.Record.Need",ids."second_need")
+    Set offered=..Run(ids.coordinator,"invite-new-receiver","redirect",{"allocation_id":(parentId),"revision":(issue.revision),"target_need_id":(target.%Id()),"target_need_revision":(target.Revision),"quantity":"15","reason":"Ask the other confirmed receiving partner to take food already with the collector."})
+    Do ..Check(offered.ok,"A coordinator must be able to offer already-collected food without the unreachable old recipient.")
+    Set childId=offered."child_allocation_id",third=##class(Allfedo.Rescue).Open("Allfedo.Record.Need",ids."third_need")
+    Set competing=..Run(ids.coordinator,"no-double-redirect","redirect",{"allocation_id":(parentId),"revision":(offered.revision),"target_need_id":(third.%Id()),"target_need_revision":(third.Revision),"quantity":"6","reason":"This would exceed the five boxes not held by the first invitation."})
+    Do ..Check('competing.ok,"Two pending redirect invitations must not reserve the same physical food.")
+    Set accepted=..Run(ids."second_recipient","new-receiver-partial-accept","accept",{"allocation_id":(childId),"revision":1,"quantity":"10","context_key":(..ContextKey(childId))})
+    Do ..Check(accepted.ok&&(accepted."collected_quantity"="10"),"Partial target acceptance must transfer only its agreed food and release the unused invitation hold.")
+    Set parent=##class(Allfedo.Rescue).Open("Allfedo.Record.Allocation",parentId),child=##class(Allfedo.Rescue).Open("Allfedo.Record.Allocation",childId),food=##class(Allfedo.Rescue).Open("Allfedo.Record.Offer",ids.offer),oldNeed=##class(Allfedo.Rescue).Open("Allfedo.Record.Need",ids.need)
+    Set balance=##class(Allfedo.Recovery).Balance(parent),childView=##class(Allfedo.Recovery).View(child,##class(Allfedo.Rescue).Actor(ids."second_recipient"))
+    Do ..Check((parent.TransferredOutQuantity=10)&&(child.TransferredInQuantity=10)&&(balance."physical_unknown_quantity"="10")&&(child.StockCommittedQuantity=0)&&(food.CollectedQuantity=20)&&(food.CommittedQuantity=0)&&(food.HeldQuantity=0),"Transfer must not create stock, count another kitchen collection, or lose remaining collector custody.")
+    Do ..Check((childView."kitchen_handoff_quantity"="0")&&'childView.redirect."parent_readable"&&'childView."current_context".details.custody.%IsDefined("location")&&(childView.redirect.children.%Size()=0),"The new receiving partner must not receive the old destination, private location, or sibling details.")
+    Do ..Check((oldNeed.State="availability_review")&&(parent.OriginalTripJSON=oldTrip),"The old need stays unavailable for new plans; its immutable original ticket stays unchanged.")
+    Set now=##class(Allfedo.Policy).Now(),trip={"allocation_id":(childId),"revision":2,"context_key":(..ContextKey(childId)),"arrival_by":(##class(Allfedo.Policy).ISO(now+1200)),"capacity":"10","handling_accepted":true}
+    Set tooSmall=..Run(ids.collector,"capacity-covers-whole-carried-load","confirm_redirect",trip)
+    Do ..Check('tooSmall.ok,"Redirecting ten of twenty boxes does not shrink the physical carried load to ten.")
+    Set trip.capacity="20",confirmed=..Run(ids.collector,"agree-new-destination","confirm_redirect",trip)
+    Do ..Check(confirmed.ok,"The same collector can agree the new destination and whole carried load without another kitchen pickup.")
+    Set received=..Run(ids."second_recipient","new-destination-receipt","receive",{"allocation_id":(childId),"revision":3,"quantity":"10","occurred_at":(##class(Allfedo.Policy).NowISO()),"note":"Ten transferred boxes accepted at the new destination."})
+    Do ..Check(received.ok&&(received.state="received"),"The new receiving partner confirms its own actual receipt.")
+    Set food=##class(Allfedo.Rescue).Open("Allfedo.Record.Offer",ids.offer)
+    Do ..Check((food.CollectedQuantity=20)&&(food.CurrentQuantity-food.CollectedQuantity=20),"Receipt at a redirected site cannot produce another kitchen collection or free returned food.")
+    Set ownLocation="Collector is now at the dispatch office after this receiving stop"
+    Set childIssue=..Run(ids.collector,"onward-site-now-closed","record_destination_issue",{"allocation_id":(childId),"revision":(received.revision),"quantity_in_custody":"0","current_location":(ownLocation),"handling_maintained":true,"note":"This receiving site has closed after accepting its food; no further arrivals are possible."})
+    Set child=##class(Allfedo.Rescue).Open("Allfedo.Record.Allocation",childId),current=##class(Allfedo.Recovery).CurrentContext(child),ticket=##class(Allfedo.Rescue).Parse(child.OriginalTripJSON)
+    Do ..Check(childIssue.ok&&(current.details.custody.location=ownLocation)&&(current.details.pickup.%ToJSON()=ticket.details.pickup.%ToJSON()),"An onward case's newer custody report must replace its parent's old location while preserving the immutable kitchen origin.")
+    Set inactiveTarget=##class(Allfedo.Rescue).Open("Allfedo.Record.Actor",ids."third_recipient"),inactiveTarget.Active=0
+    Do ##class(Allfedo.Rescue).Save(inactiveTarget)
+    Set parent=##class(Allfedo.Rescue).Open("Allfedo.Record.Allocation",parentId),target=##class(Allfedo.Rescue).Open("Allfedo.Record.Need",ids."third_need")
+    Set noContact=..Run(ids.coordinator,"no-silent-invitation-to-inactive-contact","redirect",{"allocation_id":(parentId),"revision":(parent.Revision),"target_need_id":(target.%Id()),"target_need_revision":(target.Revision),"quantity":"10","reason":"The target has capacity but must confirm a current duty contact."})
+    Do ..Check('noContact.ok&&(noContact.error.message["current contact"),"A new redirect invitation must not save a hold while silently skipping an inactive target contact.")
+
+    Do ..Setup(.ids)
+    Set parentId=..ReadyCase(ids,"20")
+    Set handed=..Run(ids.kitchen,"partial-before-destination-failure","handoff",{"allocation_id":(parentId),"revision":4,"quantity":"15","occurred_at":(##class(Allfedo.Policy).NowISO()),"note":"Fifteen collected; five promised boxes remain with the kitchen."})
+    Set issue=..Run(ids.collector,"partial-destination-closed","record_destination_issue",{"allocation_id":(parentId),"revision":5,"quantity_in_custody":"15","current_location":"Waiting with fifteen boxes in the vehicle","handling_maintained":true,"note":"The original destination is unavailable."})
+    Set food=##class(Allfedo.Rescue).Open("Allfedo.Record.Offer",ids.offer)
+    Set counted=..Run(ids.kitchen,"confirm-remaining-physical-stock","count_stock",{"offer_id":(ids.offer),"revision":(food.Revision),"on_hand_quantity":"25","occurred_at":(##class(Allfedo.Policy).NowISO()),"note":"Twenty-five usable boxes are here, including the five in the old promise; none are returns."})
+    Set parent=##class(Allfedo.Rescue).Open("Allfedo.Record.Allocation",parentId)
+    Set released=..Run(ids.coordinator,"cancel-unavailable-kitchen-remainder","release_unavailable",{"allocation_id":(parentId),"revision":(parent.Revision),"stock_source_id":(counted."source_id"),"quantity":"5","reason":"The destination is unavailable; kitchen confirmed actual custody of the unhanded portion. This is coordinator cancellation, not recipient consent."})
+    Set food=##class(Allfedo.Rescue).Open("Allfedo.Record.Offer",ids.offer),parent=##class(Allfedo.Rescue).Open("Allfedo.Record.Allocation",parentId),oldNeed=##class(Allfedo.Rescue).Open("Allfedo.Record.Need",ids.need)
+    Do ..Check(handed.ok&&issue.ok&&counted.ok&&released.ok&&(food.CollectedQuantity=15)&&(food.CommittedQuantity=0)&&(parent.Quantity=15)&&(parent.StockCommittedQuantity=0)&&(oldNeed.State="availability_review"),"An unavailable recipient cannot strand kitchen-held food; only the confirmed unhanded promise is cancelled.")
+    Set broken=..Run(ids.collector,"report-handling-break","record_destination_issue",{"allocation_id":(parentId),"revision":(parent.Revision),"quantity_in_custody":"15","current_location":"Vehicle waiting for safe disposal instructions","handling_maintained":false,"note":"The required holding conditions were not maintained."})
+    Set parent=##class(Allfedo.Rescue).Open("Allfedo.Record.Allocation",parentId)
+    Set later=..Run(ids.collector,"later-cooling-cannot-erase-break","record_destination_issue",{"allocation_id":(parentId),"revision":(parent.Revision),"quantity_in_custody":"15","current_location":"Vehicle after conditions changed again","handling_maintained":true,"note":"Conditions are restored now; this cannot erase the earlier recorded break."})
+    Set parent=##class(Allfedo.Rescue).Open("Allfedo.Record.Allocation",parentId)
+    Do ..Check(broken.ok&&later.ok&&(##class(Allfedo.Redirect).Available(parent)=0),"A reported handling break cannot be cleared automatically by a later attestation.")
+    Quit {"ok":true,"checks":"unreachable destination, need-only invitations, duplicate custody holds, partial target acceptance, immutable origin, recipient privacy, whole carried capacity, actual redirected receipt, kitchen-only cancellation, handling-break guard"}
+}
+
 ClassMethod ReadyCase(ids As %DynamicObject, quantity As %String) As %String
 {
     Set held=..Run(ids.coordinator,"recovery-plan","apply_plan",..Plan(ids.coordinator,ids.offer,ids.need,quantity))
     Do ..Check(held.ok,"Recovery fixture requires a valid hold.")
     Set allocationId=held."allocation_ids".%Get(0)
-    Set accepted=..Run(ids.recipient,"recovery-accept","accept",{"allocation_id":(allocationId),"revision":1,"quantity":(quantity)})
+    Set accepted=..Run(ids.recipient,"recovery-accept","accept",{"allocation_id":(allocationId),"revision":1,"quantity":(quantity),"context_key":(..ContextKey(allocationId))})
     Set assigned=..Run(ids.coordinator,"recovery-assign","assign_collector",{"allocation_id":(allocationId),"revision":2,"collector_actor_id":(ids.collector)})
     Set now=##class(Allfedo.Policy).Now()
     Set trip=..Run(ids.collector,"recovery-trip","confirm_transport",{"allocation_id":(allocationId),"revision":3,"pickup_at":(##class(Allfedo.Policy).ISO(now+30)),"arrival_by":(##class(Allfedo.Policy).ISO(now+1800)),"capacity":(quantity),"handling_accepted":true,"context_key":(..ContextKey(allocationId))})

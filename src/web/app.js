@@ -9,6 +9,7 @@ import {
   empty,
   notice,
 } from "./render.js";
+import { redirectPage } from "./views/redirect.js";
 import { sitePage } from "./views/site.js";
 import { offerList, offerEntry, offerDetail } from "./views/kitchen.js";
 import { needList, needEntry, needDetail } from "./views/receiving.js";
@@ -190,6 +191,10 @@ function recoveryNotice() {
     handoff: "Kitchen handoff",
     receive: "Receiving count",
     expire_hold: "Expired hold release",
+    record_destination_issue: "Collector’s current food and location report",
+    redirect: "Onward food invitation",
+    confirm_redirect: "Onward destination and arrival agreement",
+    release_unavailable: "Uncollected promise release",
   };
   const panel = el(
     "section",
@@ -226,19 +231,21 @@ function recoveryNotice() {
             const result = await api.retry({ command });
             flash =
               "The earlier request’s saved result has been checked. Review the saved record below.";
-            const destination = result.offer_id
-              ? `/offers/${result.offer_id}`
-              : result.need_id
-                ? `/needs/${result.need_id}`
-                : result.allocation_id
-                  ? `/allocations/${result.allocation_id}`
-                  : command.action === "plan_offer"
-                    ? `/offers/${command.payload.offer_id}/plan`
-                    : command.action === "apply_plan"
-                      ? `/allocations?offer_id=${command.payload.offer_id}`
-                      : command.action === "save_site"
-                        ? "/site"
-                        : null;
+            const destination = result.child_allocation_id
+              ? `/allocations/${result.child_allocation_id}`
+              : result.offer_id
+                ? `/offers/${result.offer_id}`
+                : result.need_id
+                  ? `/needs/${result.need_id}`
+                  : result.allocation_id
+                    ? `/allocations/${result.allocation_id}`
+                    : command.action === "plan_offer"
+                      ? `/offers/${command.payload.offer_id}/plan`
+                      : command.action === "apply_plan"
+                        ? `/allocations?offer_id=${command.payload.offer_id}`
+                        : command.action === "save_site"
+                          ? "/site"
+                          : null;
             if (destination && location.hash !== `#${destination}`)
               location.hash = destination;
             else await load();
@@ -378,7 +385,7 @@ async function load(options = {}) {
     let view;
     let watcher = null;
     const match = path.match(
-      /^\/(offers|needs|allocations)\/(\d+)(?:\/(edit|plan))?$/,
+      /^\/(offers|needs|allocations)\/(\d+)(?:\/(edit|plan|redirect))?$/,
     );
     if (path === "/site") {
       requireRole(["kitchen", "recipient"]);
@@ -463,7 +470,11 @@ async function load(options = {}) {
       } else if (resource === "needs")
         view = task === "edit" ? needEntry : needDetail;
       else {
-        if (task)
+        if (task === "redirect") {
+          requireRole(["coordinator"]);
+          ctx.needs = await allRecords("needs");
+          view = redirectPage;
+        } else if (task)
           throw new RequestError("This collection page does not exist.", {
             status: 404,
           });
@@ -472,7 +483,7 @@ async function load(options = {}) {
           ["coordinator", "recipient"].includes(user.role)
         )
           ctx.collectors = await allRecords("collectors");
-        view = collectionDetail;
+        if (!view) view = collectionDetail;
       }
     } else if (["/offers", "/needs", "/allocations"].includes(path)) {
       const resource = path.slice(1);

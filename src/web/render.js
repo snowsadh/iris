@@ -178,23 +178,37 @@ export function custody(record) {
   const stages = [
     [
       "handoff",
-      `${record.collected_quantity} handed over`,
-      "Kitchen’s physical reports",
+      Number(balance.redirect?.transferred_in_quantity) > 0
+        ? `${balance.redirect.transferred_in_quantity} carried from a linked collection`
+        : `${balance.kitchen_handoff_quantity ?? record.collected_quantity} handed over`,
+      Number(balance.redirect?.transferred_in_quantity) > 0
+        ? Number(balance.kitchen_handoff_quantity) > 0
+          ? `${balance.kitchen_handoff_quantity} additional boxes reported from the kitchen`
+          : "Custody transferred · no new kitchen pickup"
+        : "Kitchen’s physical reports",
     ],
     [
       "handoff",
       `${record.received_quantity} accepted`,
-      "Receiving team’s physical reports",
+      Number(balance.redirect?.transferred_out_quantity) > 0
+        ? "Accepted on this original case"
+        : balance.redirect?.parent_allocation_id
+          ? "Accepted on this onward case"
+          : "Receiving team’s physical reports",
     ],
     [
       Number(balance.physical_unknown_quantity) ? "unknown" : "handoff",
       Number(balance.physical_unknown_quantity) > 0
-        ? `${boxCount(balance.physical_unknown_quantity)} not yet accounted for`
+        ? balance.redirect?.issue || balance.redirect?.parent_allocation_id
+          ? `${boxCount(balance.physical_unknown_quantity)} still need a receiving outcome`
+          : `${boxCount(balance.physical_unknown_quantity)} not yet accounted for`
         : Number(balance.unmatched_report_quantity) > 0
           ? "Reported counts do not match"
           : "Handed-over food accounted for",
       Number(balance.physical_unknown_quantity) > 0
-        ? "A changed promise does not explain missing food"
+        ? balance.redirect?.issue || balance.redirect?.parent_allocation_id
+          ? "The last collector report and each actual receiving count stay separate"
+          : "A changed promise does not explain missing food"
         : Number(balance.unmatched_report_quantity) > 0
           ? "A physical report still needs a matching handoff"
           : "Accepted food and other known outcomes stay separate",
@@ -203,6 +217,11 @@ export function custody(record) {
     ],
   ];
   const known = [
+    [
+      "Reassigned in linked collections",
+      balance.redirect?.transferred_out_quantity,
+    ],
+    ["Held for onward replies", balance.redirect?.pending_quantity],
     ["Lost", balance.lost_quantity],
     ["Discarded", balance.disposed_quantity],
     ["Rejected and kept at receiving site", balance.rejected_quantity],

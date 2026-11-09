@@ -404,7 +404,7 @@ ClassMethod Plan(actor As Allfedo.Record.Actor, offerId As %String) As %DynamicO
 /// Event kinds identify their resource table; numeric IDs alone are not globally unique.
 ClassMethod History(actor As Allfedo.Record.Actor, resource As %String, id As %String) As %DynamicArray
 {
-    Set actions="'invitation_held','accept','decline','assign_collector','confirm_transport','handoff','receive','receive_more','record_disposition','expire_hold','change_requested','change_response','trip_reconfirmed','invitation_withdrawn'"
+    Set actions="'invitation_held','accept','decline','assign_collector','confirm_transport','handoff','receive','receive_more','record_disposition','expire_hold','change_requested','change_response','trip_reconfirmed','invitation_withdrawn','destination_unavailable','redirect_invited','redirect_accept','redirect_decline','redirect_expire_hold','redirect_withdraw_invitation','redirect_trip_confirmed','unavailable_unhanded_released'"
     If resource="offers" {
         Set sql="SELECT TOP 100 ID FROM Allfedo_Record.Event WHERE NetworkId=? AND ((ResourceId=? AND Kind IN ('offer_confirmed','stock_observed','stock_counted','food_reconfirmed','quarantine_disposed','invitations_resumed')) OR (Kind IN ("_actions_") AND ResourceId IN (SELECT ID FROM Allfedo_Record.Allocation WHERE NetworkId=? AND OfferId=?))) ORDER BY RecordedAt DESC, ID DESC"
         Set query=##class(%SQL.Statement).%ExecDirect(,sql,actor.NetworkId,id,actor.NetworkId,id)
@@ -418,7 +418,7 @@ ClassMethod History(actor As Allfedo.Record.Actor, resource As %String, id As %S
         If $IsObject(person),person.NetworkId=actor.NetworkId Set name=person.DisplayName
         Set item={"id":(""_event.%Id()),"kind":(event.Kind),"at":(..Time(event.RecordedAt)),"actor_name":(name)}
         Set body=##class(Allfedo.Rescue).Parse(event.BodyJSON)
-        For field="quantity","note","reason","occurred_at","on_hand_quantity","new_quantity","outcome" { If body.%IsDefined(field) Do item.%Set(field,body.%Get(field)) }
+        For field="quantity","note","reason","occurred_at","on_hand_quantity","new_quantity","outcome","quantity_in_custody" { If body.%IsDefined(field) Do item.%Set(field,body.%Get(field)) }
         Do rows.%Push(item)
     }
     Do ##class(Allfedo.Rescue).QueryOK(query)
@@ -443,12 +443,13 @@ ClassMethod Notifications(actor As Allfedo.Record.Actor, resource As %String, id
 ClassMethod Worklist(actor As Allfedo.Record.Actor) As %DynamicObject
 {
     Set now=##class(Allfedo.Policy).Now(), rows=[], truncated=0
-    Set query=##class(%SQL.Statement).%ExecDirect(,"SELECT TOP 101 ID FROM Allfedo_Record.Allocation WHERE NetworkId=? AND ((State='held' AND HoldUntil<=?) OR State='accepted' OR (State='ready' AND PickupAt<?) OR (State='collected' AND ArrivalBy<?) OR State IN ('receipt_issue','custody_review','closed_unconfirmed') OR PendingChangeId IN (SELECT ID FROM Allfedo_Record.ChangeRequest WHERE NetworkId=? AND State='awaiting_response')) ORDER BY ID",actor.NetworkId,now,now,now,actor.NetworkId)
+    Set query=##class(%SQL.Statement).%ExecDirect(,"SELECT TOP 101 ID FROM Allfedo_Record.Allocation WHERE NetworkId=? AND ((State='held' AND HoldUntil<=?) OR State='accepted' OR (State='ready' AND PickupAt<?) OR (State='collected' AND ArrivalBy<?) OR State IN ('receipt_issue','custody_review','closed_unconfirmed','destination_issue') OR PendingChangeId IN (SELECT ID FROM Allfedo_Record.ChangeRequest WHERE NetworkId=? AND State='awaiting_response')) ORDER BY ID",actor.NetworkId,now,now,now,actor.NetworkId)
     Do ##class(Allfedo.Rescue).QueryOK(query)
     While query.%Next() {
         If rows.%Size()=100 { Set truncated=1 Quit }
         Set record=##class(Allfedo.Rescue).Open("Allfedo.Record.Allocation",query.ID)
         Set kind=$Select(record.State="held":"expire_invitation",record.State="accepted":"assign_collector",record.State="ready":"check_pickup",record.State="collected":"check_arrival",1:"resolve_receipt")
+        If record.State="destination_issue" Set kind="resolve_destination"
         If (record.State="accepted")&&(record.CollectorActorId'="") Set kind="confirm_collector"
         If record.PendingChangeId'="" {
             Set change=##class(Allfedo.Rescue).Open("Allfedo.Record.ChangeRequest",record.PendingChangeId)

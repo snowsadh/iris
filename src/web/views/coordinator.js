@@ -1,3 +1,4 @@
+import { redirectContext } from "./redirect.js";
 import { api } from "../api.js";
 import { earliest } from "../time.js";
 import {
@@ -46,6 +47,8 @@ const workText = (item) => {
     assign_collector: "Reserved food needs a collector",
     confirm_collector: `${record.collector_name || "Assigned collector"} needs to confirm the trip`,
     review_change: "Collection change needs partner replies",
+    resolve_destination:
+      "Receiving point unavailable · carried food needs a destination",
     check_pickup: "Agreed pickup time passed",
     check_arrival: "Receiving count is overdue",
     resolve_receipt:
@@ -139,6 +142,8 @@ export function worklist(ctx) {
   if (record) {
     const [state, tone] = collectionState(record);
     append(context, tag(state, tone));
+    if (current.kind === "resolve_destination")
+      append(context, redirectContext(ctx, record));
     if (
       ["receipt_issue", "custody_review", "closed_unconfirmed"].includes(
         record.state,
@@ -709,6 +714,13 @@ export function caseEvidence(ctx) {
     custody_corrected: "Earlier physical report corrected",
     quarantine_disposed: "Kitchen recorded quarantine disposal",
     invitations_resumed: "Invitations resumed after review",
+    destination_unavailable:
+      "Collector confirmed a blocked destination and current food",
+    redirect_invited: "Onward receiving invitation sent",
+    redirect_accept: "Another receiving team accepted onward food",
+    redirect_decline: "Onward invitation declined",
+    redirect_confirmed: "Collector agreed onward destination and arrival",
+    unavailable_released: "Kitchen-backed uncollected remainder released",
     need_confirmed: "Receiving need confirmed",
     need_reconfirmed: "Receiving need updated",
     invitation_held: "Invitation hold saved",

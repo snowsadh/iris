@@ -105,6 +105,18 @@ ClassMethod ResourceKeys(action As %String, data As %DynamicObject, actor As All
         If $IsObject(allocation) {
             Do ..Require(allocation.NetworkId=actor.NetworkId,"This invitation is outside your network.")
             Set keys("allocation:"_allocation.%Id())=1,keys("offer:"_allocation.OfferId)=1,keys("need:"_allocation.NeedId)=1
+            Set family=$Select(allocation.RootAllocationId'="":allocation.RootAllocationId,1:allocation.%Id())
+            Set keys("family:"_family)=1
+            If allocation.ParentAllocationId'="" {
+                Set parent=..Open("Allfedo.Record.Allocation",allocation.ParentAllocationId)
+                Do ..Require($IsObject(parent)&&(parent.NetworkId=actor.NetworkId),"The original collection is not available.")
+                Set keys("allocation:"_parent.%Id())=1,keys("need:"_parent.NeedId)=1
+            }
+            If action="redirect" {
+                Set target=..Open("Allfedo.Record.Need",data."target_need_id")
+                Do ..Require($IsObject(target)&&(target.NetworkId=actor.NetworkId),"The proposed receiving need is outside this network.")
+                Set keys("need:"_target.%Id())=1,keys("site:"_actor.NetworkId _ ":"_target.OrganizationId)=1
+            }
             If allocation.CollectorActorId'="" Set keys("collector:"_allocation.CollectorActorId)=1
             Set offer=..Open("Allfedo.Record.Offer",allocation.OfferId),need=..Open("Allfedo.Record.Need",allocation.NeedId)
             Set keys("site:"_actor.NetworkId _ ":"_offer.OrganizationId)=1,keys("site:"_actor.NetworkId _ ":"_need.OrganizationId)=1
@@ -123,6 +135,14 @@ ClassMethod Change(actor As Allfedo.Record.Actor, action As %String, data As %Dy
     If action="count_stock" Quit ##class(Allfedo.Recovery).CountStock(actor,data)
     If action="dispose_quarantined" Quit ##class(Allfedo.Recovery).DisposeQuarantined(actor,data)
     If action="resume_offer" Quit ##class(Allfedo.Recovery).ResumeOffer(actor,data)
+    If $ListFind($ListBuild("accept","decline","expire_hold","withdraw_invitation"),action) {
+        Set addressed=..Open("Allfedo.Record.Allocation",data."allocation_id")
+        If $IsObject(addressed)&&(addressed.ParentAllocationId'="") Quit ##class(Allfedo.Redirect).Invitation(actor,action,data)
+    }
+    If action="record_destination_issue" Quit ##class(Allfedo.Redirect).Report(actor,data)
+    If action="redirect" Quit ##class(Allfedo.Redirect).Propose(actor,data)
+    If action="confirm_redirect" Quit ##class(Allfedo.Redirect).Confirm(actor,data)
+    If action="release_unavailable" Quit ##class(Allfedo.Redirect).ReleaseUnavailable(actor,data)
     If action="withdraw_invitation" Quit ##class(Allfedo.Recovery).Withdraw(actor,data)
     If action="request_change" Quit ##class(Allfedo.Recovery).RequestChange(actor,data)
     If action="respond_change" Quit ##class(Allfedo.Recovery).RespondChange(actor,data)
@@ -208,6 +228,8 @@ ClassMethod AllocationChange(actor As Allfedo.Record.Actor, action As %String, d
         Do ..Require((actor.Role="recipient")&&(actor.OrganizationId=need.OrganizationId),"Only this receiving organization can accept.")
         Do ..Require((allocation.State="held")&&(now<allocation.HoldUntil),"This invitation is no longer open for acceptance.")
         Do ..Require((offer.State="open")&&(now<offer.CollectBy)&&(now<need.ConfirmedUntil),"The food or receiving facts need a fresh review.")
+        Set reviewed=##class(Allfedo.Recovery).CurrentContext(allocation)
+        Do ..Require(reviewed."context_key"=data."context_key","The invitation details changed. Read the current food and destination before accepting.")
         Set quantity=+data.quantity, released=allocation.Quantity-quantity
         Do ..Require((quantity>0)&&(released>=0),"Accept a positive quantity up to the amount held.")
         // Capture consent before editing OREFs: CurrentContext freshly reloads authoritative records.
@@ -254,7 +276,7 @@ ClassMethod AllocationChange(actor As Allfedo.Record.Actor, action As %String, d
 /// Planned arrival is not proof that a collector or their vehicle is free again.
 ClassMethod CollectorAvailable(collectorId As %String, allocationId As %String, pickup As %BigInt, arrival As %BigInt, now As %BigInt)
 {
-    Set query=##class(%SQL.Statement).%ExecDirect(,"SELECT ID FROM Allfedo_Record.Allocation WHERE CollectorActorId=? AND ID<>? AND (CollectedQuantity>ReceivedQuantity+COALESCE(AccountedQuantity,0) OR State='custody_review' OR (State='ready' AND (ArrivalBy<=? OR (PickupAt<? AND ArrivalBy>?))))",collectorId,allocationId,now,arrival,pickup)
+    Set query=##class(%SQL.Statement).%ExecDirect(,"SELECT ID FROM Allfedo_Record.Allocation WHERE CollectorActorId=? AND ID<>? AND (CollectedQuantity>ReceivedQuantity+COALESCE(AccountedQuantity,0)+COALESCE(TransferredOutQuantity,0) OR State='custody_review' OR (State='ready' AND (ArrivalBy<=? OR (PickupAt<? AND ArrivalBy>?))))",collectorId,allocationId,now,arrival,pickup)
     Do ..QueryOK(query)
     Set blocked=query.%Next()
     Do ..QueryOK(query)

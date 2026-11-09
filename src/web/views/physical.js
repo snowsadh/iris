@@ -32,6 +32,7 @@ export function physicalActions(ctx, record) {
   if (
     role === "kitchen" &&
     record.recovery &&
+    !record.recovery.redirect?.parent_allocation_id &&
     !["held", "released", "cancelled"].includes(record.state) &&
     (Number(record.recovery.unhanded_quantity) > 0 ||
       Number(record.recovery.unmatched_report_quantity) > 0)
@@ -126,61 +127,68 @@ export function physicalActions(ctx, record) {
     record.recovery &&
     !record.recovery.receipt_recorded &&
     !["held", "released", "cancelled", "accepted"].includes(record.state)
-  )
+  ) {
+    const earlyOnward =
+      record.recovery.redirect?.parent_allocation_id &&
+      (!record.transport_confirmed || record.recovery.trip_needs_confirmation);
+    const receiptForm = actionForm({
+      title: "Count what arrived",
+      physicalReport: true,
+      description: earlyOnward
+        ? "If food already arrived before the new trip was agreed, record what was physically accepted. The report will keep the missing agreement visible for review."
+        : "Record the number your team accepts. Explain any short or rejected amount so the coordinator can follow up.",
+      submit: "Record receiving count",
+      fields: [
+        field("Meal boxes accepted", {
+          id: "receipt-count",
+          name: "quantity",
+          type: "number",
+          min: 0,
+          max: 999999,
+          required: true,
+        }),
+        occurrenceFields("receipt", record.need.site?.time_zone),
+        field("What happened to any difference?", {
+          id: "receipt-note",
+          name: "note",
+          type: "textarea",
+          maxLength: 2000,
+          help: "Required if fewer than the reserved boxes are accepted. Say what you know; leave unknown outcomes unknown.",
+        }),
+        confirm("I have counted the food at our receiving point."),
+      ],
+      onSubmit: (data, error) => {
+        if (
+          data &&
+          Number(data.get("quantity")) < Number(record.quantity) &&
+          !data.get("note").trim()
+        )
+          throw new Error(
+            "Explain the short or rejected quantity before recording this count.",
+          );
+        return mutate(
+          "receive",
+          data && {
+            ...identifier,
+            quantity: data.get("quantity"),
+            occurred_at: occurredAt(data, record.need.site?.time_zone, ctx.now),
+            note: data.get("note"),
+          },
+          error,
+          "Receiving count recorded. Any missing quantity remains open for follow-up.",
+        );
+      },
+    });
     append(
       panel,
-      actionForm({
-        title: "Count what arrived",
-        physicalReport: true,
-        description:
-          "Record the number your team accepts. Explain any short or rejected amount so the coordinator can follow up.",
-        submit: "Record receiving count",
-        fields: [
-          field("Meal boxes accepted", {
-            id: "receipt-count",
-            name: "quantity",
-            type: "number",
-            min: 0,
-            max: 999999,
-            required: true,
-          }),
-          occurrenceFields("receipt", record.need.site?.time_zone),
-          field("What happened to any difference?", {
-            id: "receipt-note",
-            name: "note",
-            type: "textarea",
-            maxLength: 2000,
-            help: "Required if fewer than the reserved boxes are accepted. Say what you know; leave unknown outcomes unknown.",
-          }),
-          confirm("I have counted the food at our receiving point."),
-        ],
-        onSubmit: (data, error) => {
-          if (
-            data &&
-            Number(data.get("quantity")) < Number(record.quantity) &&
-            !data.get("note").trim()
+      earlyOnward
+        ? disclosure(
+            "Already arrived? Record the actual accepted food",
+            receiptForm,
           )
-            throw new Error(
-              "Explain the short or rejected quantity before recording this count.",
-            );
-          return mutate(
-            "receive",
-            data && {
-              ...identifier,
-              quantity: data.get("quantity"),
-              occurred_at: occurredAt(
-                data,
-                record.need.site?.time_zone,
-                ctx.now,
-              ),
-              note: data.get("note"),
-            },
-            error,
-            "Receiving count recorded. Any missing quantity remains open for follow-up.",
-          );
-        },
-      }),
+        : receiptForm,
     );
+  }
 
   if (
     role === "recipient" &&

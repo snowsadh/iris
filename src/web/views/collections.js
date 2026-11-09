@@ -1,3 +1,4 @@
+import { redirectActions, redirectContext } from "./redirect.js";
 import { recoveryActions } from "./recovery.js";
 import { physicalActions, physicalHistory } from "./physical.js";
 import { readLocal, earliest } from "../time.js";
@@ -36,7 +37,19 @@ export const collectionState = (record) =>
         : "Pickup agreed",
       record.recovery?.trip_needs_confirmation ? "warning" : "",
     ],
-    collected: ["Collected · receiving count needed", "warning"],
+    collected: [
+      record.recovery?.redirect?.parent_allocation_id
+        ? record.transport_confirmed && !record.recovery.trip_needs_confirmation
+          ? "Onward delivery agreed · count on arrival"
+          : "Food reserved onward · collector must agree arrival"
+        : "Collected · receiving count needed",
+      "warning",
+    ],
+    destination_issue: [
+      "Receiving point unavailable · collector has food",
+      "warning",
+    ],
+    redirected: ["Food reassigned in linked collections", ""],
     received: ["Receipt confirmed", "success"],
     receipt_issue: ["Receiving count needs a check", "error"],
     released: ["Invitation released", ""],
@@ -107,9 +120,14 @@ export function collectionList(ctx) {
               {},
               record.state === "held"
                 ? `Reply by ${time(record.hold_until, record.need.site?.time_zone)}`
-                : record.transport_confirmed
-                  ? `${record.collector_name} · agreed pickup ${time(record.pickup_at, record.offer.site?.time_zone)}`
-                  : "Collector and trip still need confirmation",
+                : record.recovery?.redirect?.parent_allocation_id
+                  ? record.transport_confirmed &&
+                    !record.recovery.trip_needs_confirmation
+                    ? `${record.collector_name} · onward arrival agreed by ${time(record.arrival_by, record.need.site?.time_zone)}`
+                    : `Food already with ${record.collector_name || "the assigned collector"}; onward arrival still needs their agreement`
+                  : record.transport_confirmed
+                    ? `${record.collector_name} · agreed pickup ${time(record.pickup_at, record.offer.site?.time_zone)}`
+                    : "Collector and trip still need confirmation",
             ),
           ),
           `/allocations/${record.id}`,
@@ -125,8 +143,13 @@ function agreementActions(ctx, record) {
   const role = ctx.user.role;
   const identifier = { allocation_id: record.id, revision: record.revision };
   const expired = new Date(record.hold_until) <= new Date(ctx.now());
-  const foodUnavailable =
-    record.offer.state !== "open" || record.need.state !== "open";
+  const inTransit = Boolean(record.recovery?.redirect?.parent_allocation_id);
+  const foodUnavailable = inTransit
+    ? !record.offer.holding ||
+      !record.offer.handling_until ||
+      new Date(record.offer.handling_until) <= new Date(ctx.now()) ||
+      record.need.state !== "open"
+    : record.offer.state !== "open" || record.need.state !== "open";
   const loadUnconfirmed =
     !record.offer.packaging ||
     !record.offer.site?.time_zone ||
@@ -151,14 +174,15 @@ function agreementActions(ctx, record) {
           title: "Reserve food for your team",
           expiresAt: earliest(
             record.hold_until,
-            record.offer.collect_by,
+            !inTransit && record.offer.collect_by,
             record.offer.handling_until,
             record.need.confirmed_until,
             record.need.receiving_until,
           ),
           now: ctx.now,
-          description:
-            "Choose the amount you can receive. A collector must still be assigned and confirm the trip.",
+          description: inTransit
+            ? `The food is already with ${record.collector_name || "the assigned collector"}. Choose the amount your team can receive. That collector still needs to agree the changed destination and arrival.`
+            : "Choose the amount you can receive. A collector must still be assigned and confirm the trip.",
           submit: "Reserve these meal boxes",
           fields: [
             field("Meal boxes to reserve", {
@@ -177,9 +201,15 @@ function agreementActions(ctx, record) {
           onSubmit: (data, error) =>
             mutation(
               "accept",
-              data && { ...identifier, quantity: data.get("quantity") },
+              data && {
+                ...identifier,
+                quantity: data.get("quantity"),
+                context_key: record.recovery.current_context.context_key,
+              },
               error,
-              "Food reserved. Collector assignment and transport confirmation are still needed.",
+              inTransit
+                ? "Food reserved from the existing carried load. The assigned collector still needs to agree the onward arrival."
+                : "Food reserved. Collector assignment and transport confirmation are still needed.",
             ),
         }),
       );
@@ -217,6 +247,7 @@ function agreementActions(ctx, record) {
   }
   if (
     record.state === "accepted" &&
+    !inTransit &&
     ["coordinator", "recipient"].includes(role)
   ) {
     if (!ctx.collectors?.length)
@@ -264,6 +295,7 @@ function agreementActions(ctx, record) {
   }
   if (
     record.state === "accepted" &&
+    !inTransit &&
     role === "collector" &&
     record.collector_id === ctx.user.id
   ) {
@@ -285,7 +317,7 @@ function agreementActions(ctx, record) {
         actionForm({
           title: "Confirm your collection",
           expiresAt: earliest(
-            record.offer.collect_by,
+            !inTransit && record.offer.collect_by,
             record.offer.handling_until,
             record.need.confirmed_until,
             record.need.receiving_until,
@@ -370,20 +402,27 @@ function agreementActions(ctx, record) {
           ),
       }),
     );
-  append(forms, physicalActions(ctx, record), recoveryActions(ctx, record));
+  append(
+    forms,
+    redirectActions(ctx, record),
+    physicalActions(ctx, record),
+    recoveryActions(ctx, record),
+  );
   if (!forms.childNodes.length)
     append(
       forms,
       notice(
         record.state === "receipt_issue"
           ? "The food-rescue coordinator needs to check the recorded difference with the kitchen, collector and receiving contact. The missing quantity remains unresolved."
-          : record.state === "received"
-            ? "The receiving contact has accounted for the full collection."
-            : record.state === "released"
-              ? "This invitation no longer holds food."
-              : record.state === "ready"
-                ? "The named collector has confirmed the trip. The kitchen records the physical handoff when it happens."
-                : "The next responsible person must confirm this step. A message or planned time is not proof the food moved.",
+          : record.state === "redirected"
+            ? "This original case continues in linked collections. Each receiving team records its own accepted quantity."
+            : record.state === "received"
+              ? "The receiving contact has accounted for the full collection."
+              : record.state === "released"
+                ? "This invitation no longer holds food."
+                : record.state === "ready"
+                  ? "The named collector has confirmed the trip. The kitchen records the physical handoff when it happens."
+                  : "The next responsible person must confirm this step. A message or planned time is not proof the food moved.",
       ),
     );
   return forms;
@@ -395,12 +434,16 @@ export function collectionDetail(ctx) {
   const zone = record.offer.site?.time_zone;
   const receivingZone = record.need.site?.time_zone;
   const receiving = partnerName(record.need, "Receiving partner");
+  const onward = record.recovery?.redirect;
+  const inTransit = Boolean(onward?.parent_allocation_id);
   const isReceipt = [
     "received",
     "receipt_issue",
     "custody_review",
     "partial_closed",
     "closed_unconfirmed",
+    "destination_issue",
+    "redirected",
   ].includes(record.state);
   const summary = el(
     "article",
@@ -410,7 +453,13 @@ export function collectionDetail(ctx) {
   let pageTitle = title(record);
   if (record.state === "held") pageTitle = `Invitation for ${receiving}`;
   if (record.state === "collected")
-    pageTitle = `Count what arrived at ${receiving}`;
+    pageTitle = inTransit
+      ? `Food already carried for ${receiving}`
+      : `Count what arrived at ${receiving}`;
+  if (record.state === "destination_issue")
+    pageTitle = "The receiving point is unavailable";
+  if (record.state === "redirected")
+    pageTitle = "This food continues in linked collections";
   if (record.state === "receipt_issue")
     pageTitle = `The receiving count needs a check`;
   if (record.state === "received")
@@ -421,6 +470,7 @@ export function collectionDetail(ctx) {
     summary,
     el("h2", { className: "section-gap" }, record.offer.description),
   );
+  append(summary, redirectContext(ctx, record));
   if (isReceipt) {
     append(summary, custody(record));
   } else if (record.state === "collected") {
@@ -428,14 +478,21 @@ export function collectionDetail(ctx) {
       summary,
       facts([
         ["Reserved for this partner", boxCount(record.quantity)],
-        ["Kitchen recorded handing over", boxCount(record.collected_quantity)],
+        [
+          inTransit
+            ? "Already in the collector’s custody from the original collection"
+            : "Kitchen recorded handing over",
+          boxCount(record.collected_quantity),
+        ],
         ["Collector", record.collector_name],
         ["Receiving contact", record.need.contact_name || "Receiving team"],
       ]),
       el(
         "p",
         {},
-        "The receiving contact records what actually arrived and explains any difference.",
+        inTransit && !record.transport_confirmed
+          ? "The assigned collector needs to agree the changed destination and arrival. Record accepted food only when it actually arrives."
+          : "The receiving contact records what actually arrived and explains any difference.",
       ),
     );
   } else if (record.state === "ready" && ctx.user.role === "kitchen") {
@@ -475,7 +532,9 @@ export function collectionDetail(ctx) {
             ? labels(checkedAbsent(record.offer))
             : "No confirmed-absent labels",
         ],
-        ["Collect before", time(record.offer.collect_by, zone)],
+        ...(!inTransit
+          ? [["Collect before", time(record.offer.collect_by, zone)]]
+          : []),
         ["Receiving opens", time(record.need.receiving_from, receivingZone)],
         ["Receiving closes", time(record.need.receiving_until, receivingZone)],
         ...(record.state === "held"
@@ -487,7 +546,9 @@ export function collectionDetail(ctx) {
       append(
         summary,
         facts([
-          ["Food ready", time(record.offer.ready_at, zone)],
+          ...(!inTransit
+            ? [["Food ready", time(record.offer.ready_at, zone)]]
+            : []),
           ["Holding confirmed until", time(record.offer.handling_until, zone)],
           [
             "Kitchen’s whole-lot packing",
@@ -514,7 +575,16 @@ export function collectionDetail(ctx) {
         "details",
         {
           className: "section-gap",
-          ...(ctx.user.role === "collector" ? { open: true } : {}),
+          ...(ctx.user.role === "collector" &&
+          ![
+            "destination_issue",
+            "redirected",
+            "received",
+            "partial_closed",
+            "closed_unconfirmed",
+          ].includes(record.state)
+            ? { open: true }
+            : {}),
         },
         el("summary", {}, "Collector’s agreed ticket"),
         el(
@@ -528,10 +598,14 @@ export function collectionDetail(ctx) {
           facts([
             ["Collector", trip.collector_name],
             ["Agreed at", time(trip.agreed_at, trip.details.pickup.time_zone)],
-            [
-              "Agreed pickup",
-              time(trip.pickup_at, trip.details.pickup.time_zone),
-            ],
+            ...(!inTransit
+              ? [
+                  [
+                    "Agreed pickup",
+                    time(trip.pickup_at, trip.details.pickup.time_zone),
+                  ],
+                ]
+              : []),
             [
               "Agreed arrival by",
               time(trip.arrival_by, trip.details.destination.time_zone),
@@ -539,7 +613,22 @@ export function collectionDetail(ctx) {
             ["Agreed quantity", boxCount(trip.details.quantity)],
             ["Packing", trip.details.food.packaging],
           ]),
-          siteFacts({ site: trip.details.pickup }, "Agreed pickup place"),
+          !inTransit
+            ? siteFacts({ site: trip.details.pickup }, "Agreed pickup place")
+            : trip.details.custody?.location &&
+                facts([
+                  [
+                    "Collector’s reported starting place",
+                    trip.details.custody.location,
+                  ],
+                  [
+                    "Place confirmed at",
+                    time(
+                      trip.details.custody.confirmed_at,
+                      trip.details.pickup.time_zone,
+                    ),
+                  ],
+                ]),
           siteFacts(
             { site: trip.details.destination },
             "Agreed receiving place",
@@ -563,8 +652,12 @@ export function collectionDetail(ctx) {
         ["Kitchen", partnerName(record.offer, "Kitchen")],
         ["Receiving partner", receiving],
         ["Collector", record.collector_name || "Not assigned"],
-        ["Food ready", time(record.offer.ready_at, zone)],
-        ["Collect before", time(record.offer.collect_by, zone)],
+        ...(!inTransit
+          ? [["Food ready", time(record.offer.ready_at, zone)]]
+          : []),
+        ...(!inTransit
+          ? [["Collect before", time(record.offer.collect_by, zone)]]
+          : []),
         ["Receiving opens", time(record.need.receiving_from, receivingZone)],
         ["Receiving closes", time(record.need.receiving_until, receivingZone)],
         ["Holding method", holdingLabel(record.offer.holding)],
@@ -587,12 +680,17 @@ export function collectionDetail(ctx) {
         ],
         ...(record.transport_confirmed
           ? [
-              ["Agreed pickup", time(record.pickup_at, zone)],
+              ...(!inTransit
+                ? [["Agreed pickup", time(record.pickup_at, zone)]]
+                : []),
               ["Agreed arrival by", time(record.arrival_by, receivingZone)],
             ]
           : []),
       ]),
-      siteFacts(record.offer, "Current pickup place"),
+      siteFacts(
+        record.offer,
+        inTransit ? "Food origin" : "Current pickup place",
+      ),
       siteFacts(record.need, "Current receiving place"),
     ),
   );
@@ -602,7 +700,9 @@ export function collectionDetail(ctx) {
     link("← Back to collections", "/allocations", "back-link"),
     heading(
       pageTitle,
-      `${partnerName(record.offer, "Kitchen")} to ${receiving} · ${boxCount(record.quantity)} ${record.state === "held" ? "offered" : record.state === "released" ? "previously offered" : "reserved"}.`,
+      record.state === "redirected"
+        ? `${boxCount(record.recovery.original_promise_quantity)} originally reserved for ${receiving}. ${boxCount(onward.transferred_out_quantity)} reassigned to linked collections.`
+        : `${partnerName(record.offer, "Kitchen")} to ${receiving} · ${boxCount(record.quantity)} ${record.state === "held" ? "offered" : record.state === "released" ? "previously offered" : "reserved"}.`,
       reference(record),
     ),
     el("div", { className: "collection-layout" }, summary, actions, secondary),

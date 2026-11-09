@@ -28,6 +28,7 @@ export function recoveryActions(ctx, record) {
     role === "collector" &&
     record.collector_id === ctx.user.id &&
     recovery.trip_needs_confirmation &&
+    !recovery.redirect?.parent_allocation_id &&
     recovery.agreed_trip &&
     record.state !== "accepted" &&
     Number(record.quantity) > Number(record.received_quantity) &&
@@ -426,7 +427,11 @@ export function recoveryActions(ctx, record) {
       ),
     );
   }
-  if (record.state === "held" && ["coordinator", "kitchen"].includes(role))
+  if (
+    record.state === "held" &&
+    (role === "coordinator" ||
+      (role === "kitchen" && !recovery.redirect?.parent_allocation_id))
+  )
     append(
       panel,
       disclosure(

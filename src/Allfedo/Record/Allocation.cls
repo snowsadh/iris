@@ -41,7 +41,15 @@ Property OriginalTripJSON As %String(MAXLEN = 100000);
 Property TripContextJSON As %String(MAXLEN = 100000);
 Property TripContextKey As %String(MAXLEN = 64);
 Property PendingChangeId As %String;
+Property ParentAllocationId As %String;
+Property RootAllocationId As %String;
+Property TransferredInQuantity As %Integer(MINVAL = 0) [ InitialExpression = 0 ];
+Property TransferredOutQuantity As %Integer(MINVAL = 0) [ InitialExpression = 0 ];
+Property DestinationIssueSourceId As %String;
+Property HandlingBreakReported As %Boolean [ InitialExpression = 0 ];
 Property CustodyIssue As %String(MAXLEN = 2000);
+Index ByParent On ParentAllocationId;
+Index ByRoot On RootAllocationId;
 Index ByOffer On OfferId;
 Index ByNeed On NeedId;
 Index ByCollector On (CollectorActorId, PickupAt, ArrivalBy);
@@ -178,6 +186,24 @@ Storage Default
 </Value>
 <Value name="43">
 <Value>CustodyIssue</Value>
+</Value>
+<Value name="44">
+<Value>ParentAllocationId</Value>
+</Value>
+<Value name="45">
+<Value>RootAllocationId</Value>
+</Value>
+<Value name="46">
+<Value>TransferredInQuantity</Value>
+</Value>
+<Value name="47">
+<Value>TransferredOutQuantity</Value>
+</Value>
+<Value name="48">
+<Value>DestinationIssueSourceId</Value>
+</Value>
+<Value name="49">
+<Value>HandlingBreakReported</Value>
 </Value>
 </Data>
 <DataLocation>^Allfedo.Record.AllocationD</DataLocation>

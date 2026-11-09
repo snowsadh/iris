@@ -79,11 +79,22 @@ ClassMethod ObsoleteReason(item As Allfedo.Record.Outbox, allocation As Allfedo.
     If (offer.NetworkId'=item.NetworkId)||(need.NetworkId'=item.NetworkId) Quit "The food and receiving records are outside this network."
     Set party=$Select((contact.Role="recipient")&&(contact.OrganizationId=need.OrganizationId):"recipient",(contact.Role="kitchen")&&(contact.OrganizationId=offer.OrganizationId):"kitchen",(contact.Role="collector")&&(contact.%Id()=allocation.CollectorActorId):"collector",1:"")
     If party="" Quit "This account no longer has a responsibility in the collection."
-    If (item.Purpose="")||(item.Purpose="invitation") {
+    If (item.Purpose="")||(item.Purpose="invitation")||(item.Purpose="redirect_invitation") {
         If (party'="recipient")||(allocation.State'="held")||(allocation.Revision'=item.AllocationRevision)||(##class(Allfedo.Policy).Now()>=allocation.HoldUntil) Quit "This invitation is no longer awaiting the original reply."
+        If item.Purpose="redirect_invitation" {
+            Set parent=##class(Allfedo.Rescue).Open("Allfedo.Record.Allocation",allocation.ParentAllocationId)
+            If '$IsObject(parent) Quit "The original collected-food case is no longer available."
+            If ##class(Allfedo.Redirect).HandlingBlocked(allocation) Quit "A reported handling concern blocks this onward invitation."
+            If ##class(Allfedo.Redirect).Available(parent,allocation.%Id())<allocation.Quantity Quit "The collector's current confirmed quantity no longer supports this invitation."
+        }
         Quit ""
     }
-    If item.Purpose="withdrawn" Quit ""
+    If $ListFind($ListBuild("withdrawn","redirected","unavailable_released"),item.Purpose) Quit ""
+    If item.Purpose="redirect_accepted" {
+        If (party'="collector")||(allocation.ParentAllocationId="")||(allocation.AcceptedByActorId="")||allocation.TransportConfirmed Quit "This onward trip no longer needs the addressed collector's confirmation."
+        Set balance=##class(Allfedo.Recovery).Balance(allocation)
+        Quit $Select(+balance."physical_unknown_quantity">0:"",1:"No food remains with this collector for that onward trip.")
+    }
     If (item.Purpose'="change_request")&&(item.Purpose'="change_applied") Quit "The notification purpose is not recognized."
     Set change=##class(Allfedo.Rescue).Open("Allfedo.Record.ChangeRequest",item.RelatedChangeId)
     If '$IsObject(change) Quit "The related promise change no longer exists."
@@ -100,23 +111,30 @@ ClassMethod ObsoleteReason(item As Allfedo.Record.Outbox, allocation As Allfedo.
 ClassMethod Text(item As Allfedo.Record.Outbox, allocation As Allfedo.Record.Allocation) As %String
 {
     Set context=##class(Allfedo.Recovery).CurrentContext(allocation),details=context.details,newline=$Char(13,10),body=item.Body
-    Set pickup=details.pickup,destination=details.destination,food=details.food
-    If item.Purpose="invitation" {
-        Set body="Please accept or decline this food invitation before " _ ..At(##class(Allfedo.Policy).ISO(allocation.HoldUntil),destination."time_zone") _ ". This is a temporary hold; no collector or trip is confirmed."
+    Set pickup=details.pickup,destination=details.destination,food=details.food,inTransit=details.%Get("in_transit",0)
+    If (item.Purpose="invitation")||(item.Purpose="redirect_invitation") {
+        Set body="Please accept or decline this food invitation before " _ ..At(##class(Allfedo.Policy).ISO(allocation.HoldUntil),destination."time_zone") _ ". This is a temporary hold"
+        If inTransit {
+            Set body=body _ "." _ newline _ "The food is already with " _ details.custody."collector_name" _ ". No kitchen pickup is needed. The collector must still confirm the new destination, arrival and handling before travelling onward."
+        } Else {
+            Set body=body _ "; no collector or trip is confirmed."
+        }
+    } ElseIf item.Purpose="redirect_accepted" {
+        Set body="The receiving team accepted " _ allocation.Quantity _ " meal boxes already in your custody. Open the current case to confirm its new destination, arrival and handling. This is an onward trip, not another kitchen pickup."
     } ElseIf (item.Purpose="change_request")||(item.Purpose="change_applied") {
         Set change=##class(Allfedo.Rescue).Open("Allfedo.Record.ChangeRequest",item.RelatedChangeId)
         Set body=$Select(item.Purpose="change_request":"Proposed change: ",1:"Saved promise change: ") _ change.OriginalQuantity _ " to " _ change.NewQuantity _ " meal boxes." _ newline _ "Reason: " _ change.Reason
         Set body=body _ newline _ $Select(item.Purpose="change_request":"Open the case to review and reply. A proposal alone does not change the promise.",1:"This describes the saved change. Later updates may already exist; read the current case before acting.")
     }
     Set text="Allfedo | Collection " _ allocation.%Id() _ newline _ newline _ body _ newline _ newline
-    Set text=text _ "Food: " _ food.description _ newline _ "From: " _ pickup.name _ newline _ "Receiving team: " _ destination.name _ newline
+    Set text=text _ "Food: " _ food.description _ newline _ $Select(inTransit:"Original kitchen: ",1:"From: ") _ pickup.name _ newline _ "Receiving team: " _ destination.name _ newline
     Set text=text _ "Current recorded quantity: " _ allocation.Quantity _ " meal boxes" _ newline
-    If item.Purpose="invitation" {
-        Set text=text _ "Ready: " _ ..At(food."ready_at",pickup."time_zone") _ newline _ "Collect before: " _ ..At(food."collect_by",pickup."time_zone") _ newline
+    If (item.Purpose="invitation")||(item.Purpose="redirect_invitation") {
+        If 'inTransit Set text=text _ "Ready: " _ ..At(food."ready_at",pickup."time_zone") _ newline _ "Collect before: " _ ..At(food."collect_by",pickup."time_zone") _ newline
         Set text=text _ "Handling deadline: " _ ..At(food."handling_until",pickup."time_zone") _ newline
         Set text=text _ "Receiving from: " _ ..At(details.receiving."receiving_from",destination."time_zone") _ newline _ "Receiving before: " _ ..At(details.receiving."receiving_until",destination."time_zone") _ newline
         Set text=text _ "Holding: " _ food.holding _ newline _ "Packing: " _ $Select(food.packaging="":"Not confirmed",1:food.packaging) _ newline
-        Set text=text _ "Review the declared allergens, handling limits, pickup address and receiving instructions before accepting." _ newline
+        Set text=text _ "Review the declared allergens, handling limits and receiving instructions before accepting." _ newline
     }
     Set text=text _ newline _ "Open the saved case: " _ ..PublicURL() _ "#/allocations/" _ allocation.%Id() _ newline _ newline
     Quit text _ "Sign in with your invited account. Email delivery does not confirm acceptance, collection or receipt."

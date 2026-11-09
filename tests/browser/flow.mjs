@@ -2,6 +2,7 @@
 import assert from "node:assert/strict";
 import { readFile, mkdir } from "node:fs/promises";
 import { chromium } from "playwright";
+import { onwardJourney } from "./redirect.mjs";
 
 const accountPath = process.env.ALLFEDO_BROWSER_ACCOUNTS;
 if (!accountPath) {
@@ -41,7 +42,7 @@ let step = "Starting native sessions";
 const token = Date.now().toString(36);
 const foodDescription = `Sealed vegetable rice · browser check ${token}`;
 
-async function login(role) {
+async function login(role, expectedRole = role) {
   const context = await browser.newContext({
     viewport: { width: 1440, height: 1050 },
   });
@@ -57,7 +58,7 @@ async function login(role) {
   const session = await get(page, "session");
   assert.equal(
     session.user.role,
-    role,
+    expectedRole,
     "The native session must own the role.",
   );
   pages[role] = page;
@@ -158,7 +159,14 @@ try {
   const recipient = await login("recipient");
   const coordinator = await login("coordinator");
   const collector = await login("collector");
-  results.push("Four browser contexts use four actual native role sessions.");
+  if (!accounts.recipient2)
+    throw new Error(
+      "Complete browser checks need a second receiving account. Run npm run test:browser for a fresh five-account fixture.",
+    );
+  const recipient2 = await login("recipient2", "recipient");
+  results.push(
+    "Five independent native sessions cover four roles and two receiving teams.",
+  );
   const rendered = await kitchen.evaluate(async () => {
     const { el, append, checkedAbsent, custody } = await import(
       "/allfedo/render.js"
@@ -803,6 +811,22 @@ try {
   results.push(
     "A real command response lost after server save survives reload and reuses its original request identity: one saved offer.",
   );
+
+  await onwardJourney({
+    pages,
+    get,
+    open,
+    shot,
+    clock,
+    saveSite,
+    enterFood,
+    token,
+    collectorId: String(accounts.collector.actor_id),
+    results,
+    setStep(value) {
+      step = value;
+    },
+  });
 
   assert.equal(
     results.some(

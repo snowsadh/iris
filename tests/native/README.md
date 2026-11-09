@@ -8,6 +8,7 @@ Stop the Production before updating its running host classes. Load and compile t
 Write ##class(AllfedoScenario).TestCommands().%ToJSON(),!
 Write ##class(AllfedoScenario).TestFacts().%ToJSON(),!
 Write ##class(AllfedoScenario).TestRecovery().%ToJSON(),!
+Write ##class(AllfedoScenario).TestRedirect().%ToJSON(),!
 Write ##class(AllfedoScenario).TestRaces().%ToJSON(),!
 Write ##class(AllfedoScenario).TestBusyRecovery().%ToJSON(),!
 ```
@@ -17,6 +18,8 @@ Each check creates a separate synthetic partner network. It keeps its records fo
 The core checks run on AI Hub Community `2027.1.0AI.109.0`. They cover guarded commands, Embedded Python validation, shared stock and need, lock retry recovery, assigned collection, confirmed site/food facts, and invitation deadlines. They do not prove browser authentication, model quality, or persistent worker cleanup.
 
 `TestRecovery()` exercises actual commands for a known transit loss, recipient-confirmed replacement need, preserved original promises, zero receipt and correction history, future-report rejection, returned-food quarantine, and physical count ordering within one second. It also checks that a real receipt outside the agreed window remains recorded with a visible issue. A stock count means boxes physically at the kitchen, including quarantine. It never includes boxes already with the collector.
+
+`TestRedirect()` checks food already with a collector. A new invitation holds only receiving capacity. Partial acceptance moves the agreed portion into a linked case without another kitchen pickup. The check covers competing invitations, original contacts becoming unavailable, private case details, capacity for the whole carried load, actual receipt, kitchen-held cancellation, and a reported handling break that cannot be automatically cleared.
 
 `TestProductionLocks()` is a separate check that needs a running Production and an authenticated test principal without an existing Allfedo membership. It makes no model call. It temporarily binds only fresh synthetic partner accounts, sends six real Production commands against the same site, offer, and need. It verifies a recorded worker separate from the caller, then lets that caller acquire each resource lock while the Production remains running. The number of distinct workers is reported honestly; dispatch does not have to use multiple workers for every resource. The binding is restored afterward. A process crash can leave that fixture binding for manual inspection; the next run refuses to overwrite it.
 
