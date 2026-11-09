@@ -1,4 +1,4 @@
-# Allfedo
+# <img src="src/web/assets/mark.svg" width="40" height="40" alt=""> Allfedo
 
 **Surplus food. Agreed pickups. Confirmed receipts.**
 
