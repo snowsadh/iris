@@ -68,7 +68,7 @@ An agreed trip preserves places, entrances, contacts, load, food facts and suppo
 
 A coordinator can propose a smaller promise or cancellation. The old promise remains until required people confirm current facts. Releasing an unhanded promise requires the kitchen's actual count. Resolving a transit loss does not return those boxes to kitchen stock.
 
-For example, 20 boxes were handed over, 18 accepted and two confirmed lost. Replacement demand is not automatic. The receiving partner confirms its full current need: total20 leaves two available to replace; total18 leaves none. Original promise, current promise, physical receipt, known outcomes and unknown custody remain distinct.
+For example, 20 boxes were handed over, 18 accepted and two confirmed lost. Replacement demand is not automatic. The receiving partner confirms its full current need: total 20 leaves two available to replace; total 18 leaves none. Original promise, current promise, physical receipt, known outcomes and unknown custody remain distinct.
 
 ## Retry and notify without inventing outcomes
 
@@ -100,4 +100,4 @@ Code and data use separate databases. The login gateway can read code without re
 
 Docker volumes retain application and inbox data. The licensed image and private settings stay local. Only source folders are mounted into IRIS. Public deployment, real email, partner onboarding and handling procedures need the operating network's own configuration and validation. There are no partner interviews, physical rescue trials, automatic travel guarantees or certified food-safety decisions.
 
-Original source uses the MIT license. Native interfaces follow the [AI Hub guide](https://github.com/intersystems-community/ai-hub-eap/blob/1cca39afeb069413846c4c31196eed0b731f793a/ObjectScript_SDK_Guide.md) and were checked on build109. Source from other contest entries was not reused. The rejected sketch's local data and visual design are not part of this implementation.
+Original source uses the MIT license. Native interfaces follow the [AI Hub guide](https://github.com/intersystems-community/ai-hub-eap/blob/1cca39afeb069413846c4c31196eed0b731f793a/ObjectScript_SDK_Guide.md) and were checked on build 109. Source from other contest entries was not reused. The rejected sketch's local data and visual design are not part of this implementation.
