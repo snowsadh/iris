@@ -115,6 +115,19 @@ Record project decisions, design tradeoffs, experiments, and lessons useful for 
 - **Agent evidence:** A second live native proposal used four tools across three model interactions. The SDK reported 2,743 prompt tokens, 278 completion tokens and 5,074 ms of model time. This is one measured synthetic case, not a quality or performance benchmark. The coordinator still sent separately after review.
 - **Next:** Complete in-transit destination changes, then repeat clean installation and finish the release material. No field rescue or contest acceptance is claimed.
 
+## 2026-11-09 — Change the destination without inventing food
+
+- **Built and verified:** The collector reports actual food still carried before another receiving team is invited. The new team accepts, then the collector agrees the onward arrival. The browser followed 18 collected boxes through separate 15-box and three-box receipts without another kitchen pickup.
+- **Design lesson:** A destination's accepted quantity is smaller than the whole load the collector may still carry. Capacity must cover that whole load, and each remaining portion needs its own next action. Old recipient silence cannot confirm replacement need.
+- **Privacy lesson:** A linked collection gives the new recipient its own facts, not access to the previous recipient's private case, address or problem report.
+
+## 2026-11-09 — Follow the same rejected boxes and check the native arithmetic
+
+- **Built and verified:** Later returns and disposal link to the original rejection. Two rejected boxes can become one returned and one disposed of without becoming four known outcomes. Corrections retain that link; contradictory reports stay visible for review.
+- **Runtime finding:** ObjectScript evaluates binary arithmetic and comparisons from left to right. An unparenthesized sum after a comparison made a physical balance negative and rolled back a valid excess report. Explicit grouping fixed the cause; native checks now cover the balance, stock-resume guard and future report time.
+- **Release evidence:** Public source at `f6459b6` passed setup from fresh code and data volumes, all 17 native groups, six demo-account sign-ins, four time checks and the complete five-account browser journey. Only the loaded licensed image was reused; no provider key or development database was copied.
+- **Presentation decision:** The initial entry can use the written description. A video is an optional bonus and can be added during voting. Prepare clear recording directions while preserving the tested working source.
+
 ## Entry pattern
 
 Use only fields that help:

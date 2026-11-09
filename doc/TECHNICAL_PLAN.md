@@ -1,6 +1,6 @@
 # How Allfedo works
 
-This describes the implementation, rather than a proposed architecture. Native and browser checks have run on AI Hub Community `2027.1.0AI.109.0`. Receiving-location redirection remains core release work. The native human Workflow Engine is not used yet.
+This describes the implementation, rather than a proposed architecture. Native and browser checks have run on AI Hub Community `2027.1.0AI.109.0`, including changed destinations and linked rejected-food movements. The native human Workflow Engine is not used.
 
 ## Follow one command
 
@@ -36,6 +36,7 @@ Paths below are relative to `src/Allfedo/` unless shown otherwise.
 | `Rescue.cls` | Command identity, permissions, resource locks, transactions and ordinary agreements. |
 | `Facts.cls` | Confirmed partner places, food details and receiving needs. |
 | `Recovery.cls` | Physical reports, preserved trip tickets, promise changes and stock reconciliation. |
+| `Redirect.cls` | Collector-reported problems, new receiving consent and linked onward collections. |
 | `Policy.cls`, `src/python/allfedo/` | Strict input parsing, proposal checks and physical-stock calculation. Python runs inside IRIS. |
 | `CaseTools.cls`, `Operation/Agent.cls` | Case-scoped tools and the bounded native AI Hub decision. |
 | `OutboxService.cls`, `Operation/Mail.cls` | Saved notifications, bounded retries and actual test email. |
@@ -69,6 +70,10 @@ An agreed trip preserves places, entrances, contacts, load, food facts and suppo
 A coordinator can propose a smaller promise or cancellation. The old promise remains until required people confirm current facts. Releasing an unhanded promise requires the kitchen's actual count. Resolving a transit loss does not return those boxes to kitchen stock.
 
 For example, 20 boxes were handed over, 18 accepted and two confirmed lost. Replacement demand is not automatic. The receiving partner confirms its full current need: total 20 leaves two available to replace; total 18 leaves none. Original promise, current promise, physical receipt, known outcomes and unknown custody remain distinct.
+
+If a destination becomes unavailable after pickup, the collector first reports the actual carried quantity, location and holding. A new invitation holds receiving capacity only. Acceptance creates a linked collection; it never subtracts kitchen stock again. The collector agrees the new destination against the whole remaining carried load. Permissions keep each receiving team's private case separate.
+
+Later return or disposal of rejected food points to its original custody report through `FromCustodyId`. Corrections preserve that logical link. The calculation follows the same portion rather than counting each movement as another loss. Excess reports remain visible for review; they do not borrow another portion. A kitchen return remains quarantined.
 
 ## Retry and notify without inventing outcomes
 

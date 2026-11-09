@@ -38,6 +38,26 @@ The demo locations are explicitly fictional. Check each partner's saved location
 
 For a no-cost rehearsal, prepare the plan manually instead of calling the agent. Clearly identify which version you show. A manual plan passing the same checks is the fallback when a model is unavailable, not proof that an agent ran.
 
+## Show a changed destination
+
+Use a second case rather than editing the completed one. Confirm Bridge Centre's current need and receiving window first.
+
+1. Agree 20 boxes for Riverside and record an actual simulated handoff of 18. The two uncollected boxes remain a separate kitchen responsibility.
+2. As collector, open **Receiving point unavailable? Report the food still with you**. Confirm 18 boxes, the current location, occurrence time and holding conditions. Do not infer those facts from the old ticket.
+3. As coordinator, use **Find another receiving point**. Review Bridge's current need, offer 15 carried boxes and use **Send onward food invitation**.
+4. As Bridge, review and accept the exact quantity. As collector, open the linked collection, agree the new destination and arrival, and confirm capacity for the whole 18 still carried. A 15-box destination does not make the other three disappear.
+5. As Bridge, record 15 accepted boxes when demonstrating arrival. Handle the remaining three through a fresh collector report and another accepted invitation, or record their actual known outcome. Do not record another kitchen handoff.
+
+The original case and linked destination remain identifiable. Riverside's silence must not create replacement demand. A report that holding conditions broke blocks automatic onward agreement; do not manufacture a successful redirection by clearing that report.
+
+## Show what happens to rejected food
+
+In another small case, hand over four boxes and record two accepted. Use **Record a known outcome for food not accepted** to report two rejected boxes still held at the receiving site.
+
+Open **Physical reports and corrections**. The kitchen can record an actual later return of one rejected box; the receiving team can record disposal of the other. Link each movement to the existing rejection. Accepted food stays two, and the rejected portion is accounted for once. A kitchen return stays in quarantine; **Record quarantine disposal** does not create usable food.
+
+Use fictional events throughout. These steps demonstrate recorded responsibility; they are not instructions for deciding whether real food is safe to move or dispose of.
+
 ## A short video story
 
 Aim for about five minutes. Show decisions and changed outcomes, rather than every field.
@@ -54,6 +74,8 @@ Aim for about five minutes. Show decisions and changed outcomes, rather than eve
 Keep the cursor slow. Use readable zoom and an uncluttered desktop. Cut login transitions. Do not narrate a success that the screen has not confirmed. If the model needs time, show its actual saved result and label any edit in the recording.
 
 Export a normal MP4. For the video bonus, supply a download link that works without signing in, as well as any watch link. Verify both links in a signed-out browser before adding them to the listing. Recording and publication belong to the participant.
+
+The initial entry can use the written app description. Improvements are allowed during voting, so the video can be added afterward. Add its accessible download link before voting closes on **15 November 2026 at 11:59 PM EST**, and allow time for the organizers to check it. [Contest announcement](https://community.intersystems.com/post/intersystems-programming-contest-ai-agents-interoperability-workflows), [video conditions](https://community.intersystems.com/post/technology-bonuses-intersystems-programming-contest-ai-agents-interoperability-workflows).
 
 ## Human checks before publishing
 

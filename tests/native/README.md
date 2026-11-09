@@ -1,11 +1,20 @@
 # Native checks
 
+The normal runner installs these test classes and runs all 17 groups:
+
+```bash
+python3 scripts/iris_runtime.py --test
+```
+
+It includes provider failure, scheduled SMTP delivery and all three signed-in HTTP scenarios. It makes no paid model call. See the [validation record](../../doc/VALIDATION.md) for the release results and limits.
+
 Run these in the `ALLFEDO` namespace after installing the application classes and making `src/python` importable by Embedded Python. Load `AllfedoScenario.cls` first.
 
 Stop the Production before updating its running host classes. Load and compile the change, then start the Production again. An existing worker can retain an older loaded implementation; successful compilation alone does not prove that a running worker uses the new code.
 
 ```objectscript
 Write ##class(AllfedoScenario).TestCommands().%ToJSON(),!
+Write ##class(AllfedoScenario).TestArithmeticGuards().%ToJSON(),!
 Write ##class(AllfedoScenario).TestFacts().%ToJSON(),!
 Write ##class(AllfedoScenario).TestRecovery().%ToJSON(),!
 Write ##class(AllfedoScenario).TestRedirect().%ToJSON(),!

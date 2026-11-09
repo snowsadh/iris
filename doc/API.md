@@ -1,6 +1,6 @@
 # Partner API
 
-The API lives at `/allfedo/api`. Another known partner system can use it to maintain its receiving need, read its addressed invitations, and report actual outcomes.
+An application programming interface (API) lets another known partner system maintain its receiving need, read addressed invitations and report actual outcomes. Allfedo's API lives at `/allfedo/api`.
 
 An operator must provision a native IRIS account and an active [Actor record](../src/Allfedo/Record/Actor.cls). That record defines the account's network, organization, and role. Identity comes from IRIS `$USERNAME`; clients never choose an actor or role in a request. Model credentials stay on the Allfedo server.
 

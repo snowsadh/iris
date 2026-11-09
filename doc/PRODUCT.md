@@ -1,6 +1,6 @@
 # Allfedo: the food-rescue journey
 
-Allfedo serves known kitchens and receiving teams, with a coordinator and approved collectors. Its signed-in workflow runs on the contest runtime. Destination redirection is the remaining core recovery work. There have been no partner interviews or physical rescue trials.
+Allfedo serves known kitchens and receiving teams, with a coordinator and approved collectors. Its signed-in workflow and recovery paths run on the contest runtime. There have been no partner interviews or physical rescue trials.
 
 ## Start with the situation
 
@@ -68,11 +68,13 @@ Replacement demand needs its own confirmation. If 20 boxes were promised, 18 acc
 | A request's reply was lost | Keep its request identity through reload and recover the saved outcome before a new intention. |
 | Model access fails | Show the failed attempt. Let the coordinator make a manual plan through the same checks. |
 | Email fails | Show delivery state and current contact instructions. Mail-server acceptance is not consent. |
-| The agreed destination is unavailable | Keep food with its actual custodian. A new destination needs its own acceptance and collector agreement; this path is being completed. |
+| The agreed destination is unavailable | Collector confirms the current count, location and holding. A new destination needs its own acceptance and collector agreement; no second kitchen pickup is invented. |
 
 A reported physical event can remain true even when it violated an agreement. Record the event with the mismatch; do not turn that report into permission for a future unsafe action.
 
-Known dispositions describe distinct portions of food. Do not count the same rejected boxes again as a separate loss or return. Subsequent custody transfers need a linked record, rather than another independent deduction.
+Known dispositions describe distinct portions of food. A linked report follows already-rejected boxes through a return to the kitchen or disposal at the receiving site. The original rejection remains visible; moving those boxes does not create another deduction or accepted meal. A contradictory excess report is retained for review instead of taking food from another portion.
+
+An onward trip also keeps the whole carried load visible. If a collector carries 18 boxes and one new partner accepts 15, their confirmation must account for all 18. The other three still need their own outcome. The original recipient's replacement need stays paused until that team confirms it; silence does not create demand.
 
 ## Communication and practical limits
 
