@@ -1,12 +1,12 @@
 # InterSystems contest notes
 
-Checked: **9 November 2026**. Sources include organizer replies, not just original announcement. Runtime checks remain pending unless stated otherwise.
+Checked: **9 November 2026**. Sources include organizer replies, not just the original announcement. These notes describe platform capabilities; the [implementation guide](TECHNICAL_PLAN.md) identifies what Allfedo actually uses. Build 109, native AI Hub, Embedded Python, signed-in browser flows and scheduled test email have been verified.
 
 ## 1. Task and deadline
 
 Build working **IRIS Interoperability workflow**. Its **AI Hub agent must make a decision** inside that workflow. Interoperability means moving data between systems and handling it along the way. Agent means software that asks an AI model what to do and can call tools.
 
-Example only: receive damaged order, let agent inspect evidence, choose repair or human review, then send result onward. A chat screen alone would not demonstrate this full task.
+Allfedo's case: receive confirmed food and need, let the agent propose receiving partners, review and send invitations, then record partner replies and actual food movement. The agent runs inside the native workflow.
 
 - Submission closes **8 November, 11:59:59 PM EST**.
 - Same instant in India: **9 November, 10:29:59 AM IST**.
@@ -45,7 +45,7 @@ AI Hub comes through **Early Access Program (EAP)**. It is prerelease software; 
 - Replay allowed alongside live mode; static replay earns no online-demo bonus.
 - Approval can remain pending at deadline; submit working entry on time.
 
-These come from [organizer replies](https://community.intersystems.com/post/intersystems-programming-contest-ai-agents-interoperability-workflows). Portal download availability not independently verified; [portal](https://evaluation.intersystems.com/Eval/early-access/AIHub) inaccessible through research tools.
+These come from [organizer replies](https://community.intersystems.com/post/intersystems-programming-contest-ai-agents-interoperability-workflows). On 9 November we downloaded the actual x64 Community archive from the signed-in [portal](https://evaluation.intersystems.com/Eval/early-access/AIHub). Installed version reports `2027.1.0AI (Build 109U)`; `%AI.Agent`, `%AI.Provider`, and `%AI.ToolSet` exist. Embedded Python reports 3.12.3. Application compilation, native capacity tests, a Production-based OpenAI proposal, and local SMTP delivery have now passed. Browser access and full recovery are separate checks.
 
 **Setup pattern**, after downloading matching archive:
 

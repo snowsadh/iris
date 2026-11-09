@@ -7,6 +7,10 @@
 .env.*
 !.env.example
 
+# Generated local IRIS image and build-specific data volume.
+/compose.override.yaml
+
 # Generated Python bytecode.
 __pycache__/
+/node_modules/
 *.py[cod]

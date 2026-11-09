@@ -1,0 +1,12 @@
+{
+  "name": "allfedo",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test:time": "node --test tests/browser/time.test.mjs",
+    "test:browser": "python3 scripts/browser_test.py"
+  },
+  "devDependencies": {
+    "playwright": "1.65.0"
+  }
+}

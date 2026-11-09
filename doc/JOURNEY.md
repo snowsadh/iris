@@ -72,9 +72,63 @@ Record project decisions, design tradeoffs, experiments, and lessons useful for 
 - **Implementation preparation:** Added licensed-image setup and native class verification. Archive/platform and private-configuration preservation checks pass; those checks are not evidence of a working native workflow. A local test email inbox is available for the first integration case.
 - **Working standard:** Review coherent responsibilities, actual failures, and screenshots at meaningful milestones. Keep the repository small and remove work that no longer serves the product.
 
-## Entry pattern
+## 2026-11-09 — Name the project Allfedo
 
-Project name chosen on 9 November 2026: **Allfedo**.
+- **Decision:** User chose **Allfedo** as the project name.
+
+## 2026-11-09 — Keep food checks separate from commitments
+
+- **Built:** One Python check validates a proposed split against confirmed food and receiving records. Fourteen host-side cases cover changed capacity across kitchens, missing food information, source references, units, and time zones.
+- **Lesson:** A good proposal is still only a proposal. The database must recheck current records while creating holds; recipient consent and a named collector remain separate commitments.
+- **Review finding:** Runtime setup must verify the running image and exact native class results. It must also keep different prerelease builds on separate data volumes. Configuration checks passed; actual native installation is still underway.
+
+## 2026-11-09 — Prove the native decision and shared commitments
+
+- **Built and tested:** The actual AI Hub Community 109 image runs Allfedo's saved commands and Embedded Python checks. Two real IRIS processes competed for shared food and receiving need; only one conflicting request succeeded. A request also recovered after a temporary lock using the same request ID.
+- **Decision:** Planning and sending are separate. A live OpenAI proposal passed through the native Production with no food held. Only the later coordinator send saved a hold and notification intention. Test emails reached Mailpit; these are not real partner replies.
+- **Review lesson:** Passing compilation missed a wrongly quoted property in the agent path. The behavior check caught it. Existing Production workers also retained earlier loaded code until restarted. Recompile, restart the relevant workers, then test the behavior.
+- **Experience lesson:** Delhivery and Porter explain concrete service choices and recovery. Our interface should explain loads, contacts, entrances, and custody where people need them, using useful illustrations instead of decorative AI activity.
+- **Remaining:** Signed-in screens, complete shortage/custody recovery, richer partner facts, full end-to-end checks, and release documentation. No operational or contest submission success claimed.
+
+## 2026-11-09 — Let the real browser flow challenge the backend
+
+- **Built:** Partners now confirm their location, entrance, time zone, food conditions, and packaging. Unknown food details remain blocked for planning. A reduced receiving need keeps earlier promises visible instead of rewriting them away.
+- **Source lesson:** The original food count and later handling confirmations are different records. A plan must cite all current supporting facts.
+- **Native lesson:** IRIS stores fields in numbered positions. Keeping those positions preserved existing records when code and data were separated for sign-in permissions.
+- **Browser finding:** A successful lock was not being marked for release. Short-lived tests hid the problem because their processes exited; real workflow workers stayed alive and later requests became busy. Fixed the cleanup and added checks from another process while those workers remain running.
+- **Verified:** Five native suites now pass. Signed-in HTTP checks also cover role scope, native login/logout, repeated requests, and a plan preview that creates no hold. The complete browser journey and consent-based recovery are still under development.
+
+## 2026-11-09 — Let quantities tell the truth across four roles
+
+- **Built and observed:** Separate native sessions completed a real browser journey: 35 boxes invited, 30 accepted, 28 handed over and 27 received. The interface kept the three unresolved boxes visible instead of showing a finished rescue. A lost save response survived a page reload and recovered one saved offer, without a duplicate.
+- **Experience decision:** Put the next person's action before expandable facts and history. Use small handoff drawings to explain collected, accepted and unresolved counts. Mobile screens must keep that meaning without relying on a wide dashboard.
+- **Stock lesson:** A count describes food physically at the kitchen at a particular time. A handoff reported later may already be reflected in that count. Subtracting it again invents a shortage. Returned food also remains quarantined rather than becoming automatically available.
+- **Evidence:** The pure stock projection passed its host checks, including fractional times, ambiguous simultaneous reports and returned food. Native recovery integration remains under development; these checks do not establish a working recovery screen or physical field outcome.
+- **Next:** Verify explicit promise changes, later physical reports and changed trip details through native commands and the actual browser.
+
+## 2026-11-09 — Test the stored facts, the screens and the outside send
+
+- **Built and verified:** Native recovery and the real browser preserve original promises, current agreements, actual handoffs, accepted food and known outcomes separately. A corrected physical report keeps its exact original time and superseded source. Receiving demand pauses for a fresh confirmation when a correction undermines an earlier settlement.
+- **Runtime lesson:** IRIS grouped string keys used their SQL collation, returning `HANDOFF` even though the stored kind was `handoff`. Exact lowercase comparisons skipped real saved quantities. Compilation and Python checks missed it; native assertions and the browser exposed it. Normalizing the grouped key fixed the totals without changing the physical reports.
+- **Query lesson:** An empty optional SQL parameter behaved as NULL, so an apparent empty-string condition hid whole-offer history. Separate whole-offer and specific-collection queries restored the actual history.
+- **Communication lesson:** Notification guards passing did not prove scheduled email delivery. Valid rows stayed queued while direct delivery worked. Releasing the dispatcher's claim lock before queuing removed the race with the delivery worker. An added check now waits for actual SMTP delivery and verifies the resulting Mailpit message, including Unicode text and the handling deadline.
+- **Agent evidence:** A second live native proposal used four tools across three model interactions. The SDK reported 2,743 prompt tokens, 278 completion tokens and 5,074 ms of model time. This is one measured synthetic case, not a quality or performance benchmark. The coordinator still sent separately after review.
+- **Next:** Complete in-transit destination changes, then repeat clean installation and finish the release material. No field rescue or contest acceptance is claimed.
+
+## 2026-11-09 — Change the destination without inventing food
+
+- **Built and verified:** The collector reports actual food still carried before another receiving team is invited. The new team accepts, then the collector agrees the onward arrival. The browser followed 18 collected boxes through separate 15-box and three-box receipts without another kitchen pickup.
+- **Design lesson:** A destination's accepted quantity is smaller than the whole load the collector may still carry. Capacity must cover that whole load, and each remaining portion needs its own next action. Old recipient silence cannot confirm replacement need.
+- **Privacy lesson:** A linked collection gives the new recipient its own facts, not access to the previous recipient's private case, address or problem report.
+
+## 2026-11-09 — Follow the same rejected boxes and check the native arithmetic
+
+- **Built and verified:** Later returns and disposal link to the original rejection. Two rejected boxes can become one returned and one disposed of without becoming four known outcomes. Corrections retain that link; contradictory reports stay visible for review.
+- **Runtime finding:** ObjectScript evaluates binary arithmetic and comparisons from left to right. An unparenthesized sum after a comparison made a physical balance negative and rolled back a valid excess report. Explicit grouping fixed the cause; native checks now cover the balance, stock-resume guard and future report time.
+- **Release evidence:** Public source at `f6459b6` passed setup from fresh code and data volumes, all 17 native groups, six demo-account sign-ins, four time checks and the complete five-account browser journey. Only the loaded licensed image was reused; no provider key or development database was copied.
+- **Presentation decision:** The initial entry can use the written description. A video is an optional bonus and can be added during voting. Prepare clear recording directions while preserving the tested working source.
+
+## Entry pattern
 
 Use only fields that help:
 
