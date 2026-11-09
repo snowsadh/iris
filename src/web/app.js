@@ -520,6 +520,7 @@ async function load(options = {}) {
       append(content, caseEvidence(ctx));
     screen.replaceChildren(content, ...(pager ? [pager] : []));
     screen.removeAttribute("aria-busy");
+    document.title = `${screen.querySelector("h1")?.textContent || "Your work"} · ${site?.name || roles[user.role]} · Allfedo`;
     // Show the refreshed site name after saving setup without keeping a second partner record in the browser.
     const identity = root.querySelector(".identity span");
     if (identity) identity.textContent = site?.name || roles[user.role];
@@ -537,6 +538,7 @@ async function load(options = {}) {
     window.scrollTo(0, quiet ? previousScroll : 0);
   } catch (error) {
     if (version !== generation) return;
+    document.title = `Page unavailable · ${roles[user.role]} · Allfedo`;
     screen.replaceChildren(
       empty(
         "This page could not be opened",

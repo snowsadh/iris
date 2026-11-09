@@ -29,6 +29,8 @@ The native groups cover commands, arithmetic, two-process capacity races, tempor
 
 The browser records a real 35-box invitation, 30 accepted, 28 handed over and 27 received. It preserves the original promise, requires current kitchen and receiving confirmations, tests physical corrections, and recovers a lost response after reload without duplicating a saved action.
 
+The optional demo launcher is checked separately with `npm run test:demo`, after preparing the local demo accounts. This opens six native sessions without a model call, checks their identities and distinct window titles, and confirms that signing one out leaves another signed in. It uses `ALLFEDO_BASE_URL` if the local web port differs.
+
 A separate browser case collects 18 boxes once, redirects 15 to one accepted destination and three to another, and records each receipt. It checks capacity for all carried food and prevents the new recipient from opening the previous team's private case. Another case follows two rejected boxes through one return and one disposal; accepted food stays two and the same rejected portions are counted once.
 
 ## Fresh installation

@@ -4,7 +4,17 @@ Follow [setup](../README.md), then run `python3 scripts/demo.py`. Use fictional 
 
 ## Open the four roles
 
-Use separate browser profiles or isolated browser contexts. Ordinary tabs share a login. Sign in at <http://127.0.0.1:52773/allfedo/> with credentials from your local `.env.demo.json`.
+With Node.js 20 or newer, open all six partners in separate signed-in windows:
+
+```bash
+npm ci
+npx playwright install chromium
+python3 scripts/demo.py --open
+```
+
+Each window has its own native account and cookies. Its title identifies the current work and partner. This opens the actual app and preserves its saved records; it creates no food, commitments or model decision. Close the windows when finished.
+
+For manual sign-in, use separate browser profiles or isolated browser contexts. Ordinary tabs share a login. Sign in at <http://127.0.0.1:52773/allfedo/> with credentials from your local `.env.demo.json`.
 
 | Account key | Role |
 |---|---|

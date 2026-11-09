@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import argparse
 import http.cookiejar
 from html.parser import HTMLParser
 import json
@@ -142,6 +143,9 @@ def verify_login(url: str, config: dict) -> None:
 
 
 def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--open", action="store_true", help="Open each fictional partner in its own signed-in browser session.")
+    arguments = parser.parse_args()
     try:
         config = configuration()
         result = native("SeedFromEnvironment", config)
@@ -152,6 +156,12 @@ def main() -> None:
     print(f"Allfedo local demo is ready: {result['accounts']} accounts and {result['sites']} fictional partner sites.")
     print(f"Open {url}")
     print(f"Passwords are in {ACCOUNTS}. Keep this ignored file private; reruns preserve its accounts and history.")
+    if arguments.open:
+        try:
+            subprocess.run(["node", str(PROJECT / "scripts" / "open_demo.mjs"), str(ACCOUNTS), url],
+                           cwd=PROJECT, check=True)
+        except (OSError, subprocess.SubprocessError):
+            raise SystemExit("Demo browser could not finish. Install the browser tools with npm ci and npx playwright install chromium.") from None
 
 
 if __name__ == "__main__":
