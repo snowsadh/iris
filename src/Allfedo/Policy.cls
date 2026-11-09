@@ -58,6 +58,7 @@ ClassMethod Normalize(action As %String, payload As %String) As %String [ Langua
             "request_change": {"allocation_id", "revision", "new_quantity", "reason"},
             "respond_change": {"change_id", "revision", "agree", "need_total", "need_revision", "stock_source_id", "note"},
             "record_disposition": {"allocation_id", "revision", "quantity", "outcome", "occurred_at", "note"},
+            "transfer_rejected": {"custody_id", "revision", "quantity", "outcome", "occurred_at", "note"},
             "correct_custody": {"custody_id", "revision", "quantity", "occurred_at", "note"},
             "receive_more": {"allocation_id", "revision", "quantity", "occurred_at", "note"},
             "dispose_quarantined": {"offer_id", "revision", "quantity", "occurred_at", "note"},
@@ -116,6 +117,8 @@ ClassMethod Normalize(action As %String, payload As %String) As %String [ Langua
                 raise ValueError(name + " must be true or false.")
         if action == "record_disposition" and item["outcome"] not in {"lost", "discarded", "returned_to_kitchen", "rejected_at_site"}:
             raise ValueError("Choose lost, discarded, returned_to_kitchen, or rejected_at_site.")
+        if action == "transfer_rejected" and item["outcome"] not in {"returned_to_kitchen", "disposed_at_recipient"}:
+            raise ValueError("Choose returned_to_kitchen or disposed_at_recipient.")
         if action == "save_site":
             from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
             try:

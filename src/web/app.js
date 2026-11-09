@@ -173,6 +173,7 @@ function recoveryNotice() {
     request_change: "Collection change request",
     respond_change: "Partner response to a collection change",
     record_disposition: "Known physical food outcome",
+    transfer_rejected: "Follow-up for rejected food",
     acknowledge_trip: "Updated trip agreement",
     receive_more: "Additional receiving count",
     correct_custody: "Correction to a physical report",
@@ -233,12 +234,12 @@ function recoveryNotice() {
               "The earlier request’s saved result has been checked. Review the saved record below.";
             const destination = result.child_allocation_id
               ? `/allocations/${result.child_allocation_id}`
-              : result.offer_id
-                ? `/offers/${result.offer_id}`
-                : result.need_id
-                  ? `/needs/${result.need_id}`
-                  : result.allocation_id
-                    ? `/allocations/${result.allocation_id}`
+              : result.allocation_id
+                ? `/allocations/${result.allocation_id}`
+                : result.offer_id
+                  ? `/offers/${result.offer_id}`
+                  : result.need_id
+                    ? `/needs/${result.need_id}`
                     : command.action === "plan_offer"
                       ? `/offers/${command.payload.offer_id}/plan`
                       : command.action === "apply_plan"

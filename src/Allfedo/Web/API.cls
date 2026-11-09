@@ -404,7 +404,7 @@ ClassMethod Plan(actor As Allfedo.Record.Actor, offerId As %String) As %DynamicO
 /// Event kinds identify their resource table; numeric IDs alone are not globally unique.
 ClassMethod History(actor As Allfedo.Record.Actor, resource As %String, id As %String) As %DynamicArray
 {
-    Set actions="'invitation_held','accept','decline','assign_collector','confirm_transport','handoff','receive','receive_more','record_disposition','expire_hold','change_requested','change_response','trip_reconfirmed','invitation_withdrawn','destination_unavailable','redirect_invited','redirect_accept','redirect_decline','redirect_expire_hold','redirect_withdraw_invitation','redirect_trip_confirmed','unavailable_unhanded_released'"
+    Set actions="'invitation_held','accept','decline','assign_collector','confirm_transport','handoff','receive','receive_more','record_disposition','expire_hold','change_requested','change_response','trip_reconfirmed','invitation_withdrawn','destination_unavailable','redirect_invited','redirect_accept','redirect_decline','redirect_expire_hold','redirect_withdraw_invitation','redirect_trip_confirmed','unavailable_unhanded_released','rejected_food_moved'"
     If resource="offers" {
         Set sql="SELECT TOP 100 ID FROM Allfedo_Record.Event WHERE NetworkId=? AND ((ResourceId=? AND Kind IN ('offer_confirmed','stock_observed','stock_counted','food_reconfirmed','quarantine_disposed','invitations_resumed')) OR (Kind IN ("_actions_") AND ResourceId IN (SELECT ID FROM Allfedo_Record.Allocation WHERE NetworkId=? AND OfferId=?))) ORDER BY RecordedAt DESC, ID DESC"
         Set query=##class(%SQL.Statement).%ExecDirect(,sql,actor.NetworkId,id,actor.NetworkId,id)
@@ -418,7 +418,7 @@ ClassMethod History(actor As Allfedo.Record.Actor, resource As %String, id As %S
         If $IsObject(person),person.NetworkId=actor.NetworkId Set name=person.DisplayName
         Set item={"id":(""_event.%Id()),"kind":(event.Kind),"at":(..Time(event.RecordedAt)),"actor_name":(name)}
         Set body=##class(Allfedo.Rescue).Parse(event.BodyJSON)
-        For field="quantity","note","reason","occurred_at","on_hand_quantity","new_quantity","outcome","quantity_in_custody" { If body.%IsDefined(field) Do item.%Set(field,body.%Get(field)) }
+        For field="quantity","note","reason","occurred_at","on_hand_quantity","new_quantity","outcome","quantity_in_custody","from_custody_id" { If body.%IsDefined(field) Do item.%Set(field,body.%Get(field)) }
         Do rows.%Push(item)
     }
     Do ##class(Allfedo.Rescue).QueryOK(query)

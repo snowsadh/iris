@@ -71,7 +71,7 @@ ClassMethod Propose(actor As Allfedo.Record.Actor, data As %DynamicObject) As %D
     Do ##class(Allfedo.Rescue).Require($IsObject(contact)&&contact.Active&&(contact.NetworkId=actor.NetworkId)&&(contact.OrganizationId=target.OrganizationId)&&(contact.Role="recipient"),"Ask this receiving partner to reconfirm today's need with its current contact before sending an invitation.")
     Set earliest=$Select(target.ReceivingFrom>now:target.ReceivingFrom,1:now+1)
     Do ##class(Allfedo.Recovery).AssertCompatible(offer,target,earliest,1)
-    Do ##class(Allfedo.Rescue).Require(target.RequestedQuantity-target.HeldQuantity-target.CommittedQuantity>=quantity,"Another promise already uses part of this partner's receiving need.")
+    Do ##class(Allfedo.Rescue).Require((target.RequestedQuantity-target.HeldQuantity-target.CommittedQuantity)>=quantity,"Another promise already uses part of this partner's receiving need.")
     Set expiry=now+900
     If expiry>offer.HandlingUntil Set expiry=offer.HandlingUntil
     If expiry>target.ConfirmedUntil Set expiry=target.ConfirmedUntil
@@ -234,7 +234,7 @@ ClassMethod View(item As Allfedo.Record.Allocation, actor As Allfedo.Record.Acto
         Set query=##class(%SQL.Statement).%ExecDirect(,"SELECT ID FROM Allfedo_Record.Allocation WHERE ParentAllocationId=? ORDER BY ID",item.%Id())
         Do ##class(Allfedo.Rescue).QueryOK(query)
         While query.%Next() {
-            Set child=##class(Allfedo.Rescue).Open("Allfedo.Record.Allocation",query.ID),entry={"id":(""_child.%Id()),"state":(child.State),"quantity":(""_child.Quantity),"held_quantity":(""_child.HeldQuantity),"can_open":true}
+            Set child=##class(Allfedo.Rescue).Open("Allfedo.Record.Allocation",query.ID),entry={"id":(""_child.%Id()),"state":(child.State),"quantity":(""_child.Quantity),"received_quantity":(""_child.ReceivedQuantity),"held_quantity":(""_child.HeldQuantity),"can_open":true}
             Do children.%Push(entry)
         }
         Do ##class(Allfedo.Rescue).QueryOK(query)

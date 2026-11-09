@@ -254,25 +254,32 @@ If 'sc Do $SYSTEM.Status.DisplayError(sc)
 If sc Set sc=$SYSTEM.OBJ.Load("/tmp/AllfedoMailScenario.cls","ck")
 If 'sc Do $SYSTEM.Status.DisplayError(sc)
 If sc { Set result=##class(AllfedoScenario).TestCommands() Write !,"ALLFEDO_COMMANDS=",result.%ToJSON(),! }
+If sc { Set result=##class(AllfedoScenario).TestArithmeticGuards() Write !,"ALLFEDO_ARITHMETIC=",result.%ToJSON(),! }
 If sc { Set result=##class(AllfedoScenario).TestRaces() Write !,"ALLFEDO_RACES=",result.%ToJSON(),! }
 If sc { Set result=##class(AllfedoScenario).TestBusyRecovery() Write !,"ALLFEDO_BUSY=",result.%ToJSON(),! }
 If sc { Set result=##class(AllfedoScenario).TestFacts() Write !,"ALLFEDO_FACTS=",result.%ToJSON(),! }
 If sc { Set result=##class(AllfedoScenario).TestProductionLocks() Write !,"ALLFEDO_WORKERS=",result.%ToJSON(),! }
 If sc { Set result=##class(AllfedoScenario).TestRecovery() Write !,"ALLFEDO_RECOVERY=",result.%ToJSON(),! }
 If sc { Set result=##class(AllfedoScenario).TestRedirect() Write !,"ALLFEDO_REDIRECT=",result.%ToJSON(),! }
+If sc { Set result=##class(AllfedoScenario).TestRejectedTransfer() Write !,"ALLFEDO_REJECTED=",result.%ToJSON(),! }
 If sc { Set result=##class(AllfedoAgentScenario).TestUnavailable() Write !,"ALLFEDO_AGENT_FAILURE=",result.%ToJSON(),! }
 If sc { Set result=##class(AllfedoMailScenario).Run() Write !,"ALLFEDO_MAIL=",result.%ToJSON(),! }
 If sc { Set result=##class(AllfedoMailScenario).TestRedirectNotices() Write !,"ALLFEDO_MAIL_REDIRECT=",result.%ToJSON(),! }
 If sc { Set result=##class(AllfedoMailScenario).TestStaleRedirectNotices() Write !,"ALLFEDO_MAIL_STALE=",result.%ToJSON(),! }
 If sc { Set result=##class(AllfedoMailScenario).TestScheduled() Write !,"ALLFEDO_SMTP=",result.%ToJSON(),! }
 If sc Write !,"ALLFEDO_HTTP=",##class(AllfedoWebScenario).Run(),!
-If sc Write !,"ALLFEDO_HTTP_REDIRECT=",##class(AllfedoWebScenario).Run("http://127.0.0.1:52773/allfedo/api",1),!
+If sc Write !,"ALLFEDO_HTTP_REDIRECT=",##class(AllfedoWebScenario).Run("http://127.0.0.1:52773/allfedo/api","redirect"),!
+If sc Write !,"ALLFEDO_HTTP_REJECTED=",##class(AllfedoWebScenario).Run("http://127.0.0.1:52773/allfedo/api","rejected"),!
 Halt
 '''
     # The direct agent-failure check cannot contact a provider. Existing Production workers keep their own environment.
     result = subprocess.run(_compose_command("exec", "-T", "--env", "OPENAI_API_KEY=", "iris", "iris", "session", "IRIS", "-U", "ALLFEDO"),
                             cwd=PROJECT, input=commands, text=True, capture_output=True, timeout=180)
-    names = ("COMMANDS", "RACES", "BUSY", "FACTS", "WORKERS", "RECOVERY", "REDIRECT", "AGENT_FAILURE", "MAIL", "MAIL_REDIRECT", "MAIL_STALE", "SMTP", "HTTP", "HTTP_REDIRECT")
+    names = (
+        "COMMANDS", "ARITHMETIC", "RACES", "BUSY", "FACTS", "WORKERS", "RECOVERY", "REDIRECT",
+        "REJECTED", "AGENT_FAILURE", "MAIL", "MAIL_REDIRECT", "MAIL_STALE", "SMTP",
+        "HTTP", "HTTP_REDIRECT", "HTTP_REJECTED",
+    )
     checks = {}
     for line in result.stdout.splitlines():
         for name in names:

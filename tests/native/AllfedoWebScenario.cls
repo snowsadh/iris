@@ -1,7 +1,7 @@
 /// Real HTTP authorization checks. Passwords exist only in memory; temporary users are removed afterward.
 Class AllfedoWebScenario Extends %RegisteredObject
 {
-ClassMethod Prepare(credentialsJSON As %String, redirectOnly As %Boolean = 0) As %String
+ClassMethod Prepare(credentialsJSON As %String, minimal As %Boolean = 0) As %String
 {
     Set credentials=##class(Allfedo.Rescue).Parse(credentialsJSON)
     Do ##class(AllfedoScenario).Setup(.ids), ##class(AllfedoScenario).Setup(.other)
@@ -25,7 +25,7 @@ ClassMethod Prepare(credentialsJSON As %String, redirectOnly As %Boolean = 0) As
     Set result=##class(AllfedoScenario).Run(ids.coordinator,"http-assign-one","assign_collector",{"allocation_id":(ids.allocation),"revision":2,"collector_actor_id":(ids.collector)})
     Do ##class(Allfedo.Rescue).Require(result.ok,"The HTTP fixture assignment failed.")
     Set ids."foreign_offer"=other.offer
-    If redirectOnly Quit ids.%ToJSON()
+    If minimal Quit ids.%ToJSON()
     Set plan=##class(AllfedoScenario).Plan(ids.coordinator,ids.offer,ids."second_need","15")
     Set held=##class(AllfedoScenario).Run(ids.coordinator,"http-hold-two","apply_plan",plan)
     Do ##class(Allfedo.Rescue).Require(held.ok,"The second HTTP fixture invitation failed.")
@@ -94,7 +94,7 @@ ClassMethod CheckCleanupCollision(username As %String, password As %String) As %
     Quit 1
 }
 
-ClassMethod Run(baseURL As %String = "http://127.0.0.1:52773/allfedo/api", redirectOnly As %Boolean = 0) As %String [ Language = python ]
+ClassMethod Run(baseURL As %String = "http://127.0.0.1:52773/allfedo/api", scenario As %String = "core") As %String [ Language = python ]
 {
     import base64
     from datetime import datetime, timedelta, timezone
@@ -108,6 +108,8 @@ ClassMethod Run(baseURL As %String = "http://127.0.0.1:52773/allfedo/api", redir
     import urllib.parse
     import uuid
 
+    if scenario not in {"core", "redirect", "rejected"}:
+        raise ValueError("Choose the core, redirect, or rejected HTTP scenario.")
     suffix = uuid.uuid4().hex[:12]
     accounts = {role: {"username": "allfedo-web-test-" + suffix + "-" + role,
                        "password": secrets.token_urlsafe(32)}
@@ -152,17 +154,97 @@ ClassMethod Run(baseURL As %String = "http://127.0.0.1:52773/allfedo/api", redir
     fixture = None
     try:
         require(iris.cls("AllfedoWebScenario").CheckCleanupCollision("allfedo-web-test-" + suffix + "-collision", secrets.token_urlsafe(32) + "Aa1!"), "Failed setup cannot delete a colliding account without its exact test ownership marker")
-        fixture = json.loads(iris.cls("AllfedoWebScenario").Prepare(credentials, redirectOnly))
-        if redirectOnly:
+        fixture = json.loads(iris.cls("AllfedoWebScenario").Prepare(credentials, int(scenario != "core")))
+        if scenario != "core":
             parent_path = "/allocations/" + str(fixture["allocation"])
             status, body = request(parent_path, "collector")
             parent = body["record"]
             pickup_at = (datetime.now(timezone.utc) + timedelta(minutes=1)).isoformat()
             arrival_by = (datetime.now(timezone.utc) + timedelta(minutes=20)).isoformat()
             status, result = send("collector", "confirm_transport", {"allocation_id": parent["id"], "revision": parent["revision"], "pickup_at": pickup_at, "arrival_by": arrival_by, "capacity": "20", "handling_accepted": True, "context_key": parent["recovery"]["current_context"]["context_key"]})
-            require(status == 200 and result.get("ok"), "Redirect fixture has an actual collector agreement")
+            require(status == 200 and result.get("ok"), "Collection fixture has an actual collector agreement")
             status, result = send("kitchen", "handoff", {"allocation_id": parent["id"], "revision": result["revision"], "quantity": "20", "occurred_at": instant(), "note": "Twenty sealed boxes handed to the agreed collector."})
-            require(status == 200 and result.get("physical_report_saved"), "Redirect starts with a real saved twenty-box kitchen handoff")
+            require(status == 200 and result.get("physical_report_saved"), "Collection starts with a real saved twenty-box kitchen handoff")
+            if scenario == "rejected":
+                case_path = parent_path
+                status, received = send("recipient", "receive", {"allocation_id": parent["id"], "revision": result["revision"], "quantity": "10", "occurred_at": instant(), "note": "Ten boxes accepted; ten remain at the receiving site for inspection."})
+                require(status == 200 and received.get("physical_report_saved"), "Receiving team records only the ten boxes actually accepted")
+                original_note = "Ten rejected boxes remain at the receiving site, separate from accepted food."
+                status, rejected = send("recipient", "record_disposition", {"allocation_id": parent["id"], "revision": received["revision"], "quantity": "10", "outcome": "rejected_at_site", "occurred_at": instant(), "note": original_note})
+                require(status == 200 and rejected.get("physical_report_saved"), "Receiving team records a distinct ten-box rejection still at its site")
+                origin_id = str(rejected["custody_id"])
+                status, body = request(case_path, "recipient")
+                case = body["record"]
+                origin = next(row for row in case["recovery"]["custody_history"] if row["id"] == origin_id)
+                require(origin["quantity"] == "10" and origin["transferable_quantity"] == "10" and origin["can_confirm_disposal"] is True and origin["can_confirm_return"] is False, "Receiving history exposes its actual rejected remainder and only its own disposal permission")
+                status, body = request(case_path, "kitchen")
+                kitchen_origin = next(row for row in body["record"]["recovery"]["custody_history"] if row["id"] == origin_id)
+                require(kitchen_origin["can_confirm_return"] is True and kitchen_origin["can_confirm_disposal"] is False, "Kitchen can confirm actual returned arrival without claiming disposal at another site")
+                returned_payload = {"custody_id": origin_id, "revision": origin["revision"], "quantity": "4", "outcome": "returned_to_kitchen", "occurred_at": instant(), "note": "Four of the rejected boxes actually arrived back at the kitchen and were quarantined."}
+                status, denied = send("collector", "transfer_rejected", returned_payload)
+                require(status == 422, "Collector cannot assert that rejected food arrived at the kitchen")
+                status, denied = send("second_recipient", "transfer_rejected", dict(returned_payload, outcome="disposed_at_recipient"))
+                require(status == 422, "Another receiving organization cannot dispose of this site's rejected portion")
+                return_command = {"request_id": "http-linked-return-" + suffix, "action": "transfer_rejected", "payload": returned_payload}
+                status, returned = request("/commands", "kitchen", return_command)
+                require(status == 200 and returned.get("physical_report_saved"), "Kitchen appends a real four-box return linked to the original rejection")
+                status, repeated = request("/commands", "kitchen", return_command)
+                require(status == 200 and repeated.get("custody_id") == returned["custody_id"], "Retry of the same linked return cannot count the food twice")
+                status, body = request(case_path, "recipient")
+                case = body["record"]
+                balance = case["recovery"]
+                origin = next(row for row in balance["custody_history"] if row["id"] == origin_id)
+                linked = next(row for row in balance["custody_history"] if row["id"] == str(returned["custody_id"]))
+                require(case["received_quantity"] == "10" and balance["rejected_quantity"] == "6" and balance["returned_quantity"] == "4" and balance["accounted_quantity"] == "10" and balance["unmatched_report_quantity"] == "0", "A return moves the rejected portion once while accepted food stays unchanged")
+                require(origin["active"] and origin["quantity"] == "10" and origin["note"] == original_note and linked["from_custody_id"] == origin_id and "source_id" not in linked, "Original rejection stays intact and the linked return reveals no private source internals")
+                status, food = request("/offers/" + str(fixture["offer"]), "kitchen")
+                require(food["record"]["quarantined_quantity"] == "4" and food["record"]["stock_projection"]["usable_on_hand_quantity"] == "20", "Returned boxes enter quarantine and never become usable stock")
+                status, disposed = send("recipient", "transfer_rejected", {"custody_id": origin_id, "revision": origin["revision"], "quantity": "3", "outcome": "disposed_at_recipient", "occurred_at": instant(), "note": "Three remaining rejected boxes were actually disposed of at the receiving site."})
+                require(status == 200 and disposed.get("physical_report_saved"), "Receiving team appends a separate actual disposal from the same rejected portion")
+                status, body = request(case_path, "recipient")
+                case = body["record"]
+                balance = case["recovery"]
+                disposal = next(row for row in balance["custody_history"] if row["id"] == str(disposed["custody_id"]))
+                require(balance["rejected_quantity"] == "3" and balance["returned_quantity"] == "4" and balance["disposed_quantity"] == "3" and balance["accounted_quantity"] == "10" and case["received_quantity"] == "10" and disposal["from_custody_id"] == origin_id and disposal["can_correct"] is True, "Return and site disposal share the original portion without inflating accounted food")
+                status, food = request("/offers/" + str(fixture["offer"]), "kitchen")
+                require(food["record"]["quarantined_quantity"] == "4", "Disposal at the receiving site does not consume kitchen quarantine")
+                correction = {"custody_id": str(returned["custody_id"]), "revision": 1, "quantity": "2", "occurred_at": instant(), "note": "Corrected the return log: two boxes actually arrived at the kitchen, not four."}
+                status, denied = send("recipient", "correct_custody", correction)
+                require(status == 422, "Receiving staff cannot rewrite the kitchen's arrival report")
+                status, corrected = send("kitchen", "correct_custody", correction)
+                require(status == 200 and corrected.get("supersedes_id") == str(returned["custody_id"]), "Kitchen correction preserves the prior return and its rejection link")
+                status, body = request(case_path, "kitchen")
+                case = body["record"]
+                balance = case["recovery"]
+                corrected_return = next(row for row in balance["custody_history"] if row["id"] == str(corrected["custody_id"]))
+                origin = next(row for row in balance["custody_history"] if row["id"] == origin_id)
+                require(corrected_return["from_custody_id"] == origin_id and balance["returned_quantity"] == "2" and balance["rejected_quantity"] == "5" and balance["accounted_quantity"] == "10" and origin["transferable_quantity"] == "5", "Correcting a linked return updates only that portion and preserves single-count accounting")
+                status, original_corrected = send("recipient", "correct_custody", {"custody_id": origin_id, "revision": origin["revision"], "quantity": "9", "occurred_at": instant(), "note": "The original rejection count was nine; one box is still physically unlocated."})
+                require(status == 200 and original_corrected.get("supersedes_id") == origin_id, "Receiving staff can correct the rejection without deleting its earlier movements")
+                status, body = request(case_path, "recipient")
+                case = body["record"]
+                balance = case["recovery"]
+                current_origin = next(row for row in balance["custody_history"] if row["id"] == str(original_corrected["custody_id"]))
+                require(current_origin["transferable_quantity"] == "4" and balance["rejected_quantity"] == "4" and balance["accounted_quantity"] == "9" and balance["physical_unknown_quantity"] == "1", "Corrected rejection follows existing linked movements and exposes the actual unlocated box")
+                status, denied = send("kitchen", "transfer_rejected", dict(returned_payload, quantity="1", occurred_at=instant()))
+                require(status == 422, "A superseded rejection cannot be used for another physical follow-up")
+                status, later_return = send("kitchen", "transfer_rejected", dict(returned_payload, custody_id=current_origin["id"], revision=current_origin["revision"], quantity="1", occurred_at=instant(), note="One more box actually returned after the corrected rejection count."))
+                require(status == 200 and later_return.get("physical_report_saved"), "A later return can refer to the current corrected rejection")
+                status, body = request(case_path, "kitchen")
+                case = body["record"]
+                later = next(row for row in case["recovery"]["custody_history"] if row["id"] == str(later_return["custody_id"]))
+                require(later["from_custody_id"] == origin_id and case["recovery"]["returned_quantity"] == "3" and case["recovery"]["accounted_quantity"] == "9", "Later movements keep one stable original portion across its correction chain")
+                status, other_rejection = send("recipient", "record_disposition", {"allocation_id": parent["id"], "revision": case["revision"], "quantity": "1", "outcome": "rejected_at_site", "occurred_at": instant(), "note": "The separately located box is also rejected and remains at this site."})
+                require(status == 200 and other_rejection.get("physical_report_saved"), "A separately found rejected portion keeps its own original report")
+                status, excess = send("kitchen", "transfer_rejected", dict(returned_payload, custody_id=current_origin["id"], revision=current_origin["revision"], quantity="5", occurred_at=instant(), note="Five boxes actually arrived; this exceeds the earlier portion's remaining count and requires review."))
+                require(status == 200 and excess.get("physical_report_saved") and excess.get("agreement_issue"), "Actual excess arrival is saved with a visible issue rather than erased (HTTP " + str(status) + "; " + str(excess.get("error", {})) + ")")
+                status, body = request(case_path, "recipient")
+                case = body["record"]
+                balance = case["recovery"]
+                separate = next(row for row in balance["custody_history"] if row["id"] == str(other_rejection["custody_id"]))
+                require(separate["transferable_quantity"] == "1" and balance["rejected_quantity"] == "1" and balance["returned_quantity"] == "8" and balance["accounted_quantity"] == "12" and balance["unmatched_report_quantity"] == "2", "An excess linked return cannot borrow boxes from a different rejection report")
+                require(case["state"] == "custody_review" and any(row["kind"] == "rejected_food_moved" and row.get("from_custody_id") == origin_id for row in request(case_path, "coordinator")[1].get("history", [])), "Coordinator sees the saved linked movements and unresolved physical conflict")
+                return json.dumps({"ok": True, "checks": checks, "count": len(checks), "fixture_network": fixture["network"], "scenario": scenario, "users_removed": True})
             private_location = "Outside the original receiving team's private loading gate"
             private_note = "Original access contact is unavailable; this note belongs to the blocked destination."
             issue = {"allocation_id": parent["id"], "revision": result["revision"], "quantity_in_custody": "20", "current_location": private_location, "handling_maintained": True, "note": private_note}
@@ -252,7 +334,7 @@ ClassMethod Run(baseURL As %String = "http://127.0.0.1:52773/allfedo/api", redir
             require(body["record"]["received_quantity"] == "10" and body["record"]["recovery"]["physical_unknown_quantity"] == "0", "Redirected receipt closes only the child's actual custody")
             status, after = request("/offers/" + str(fixture["offer"]), "kitchen")
             require(after["record"]["collected_quantity"] == "20", "Completed redirect never counts the original kitchen handoff twice")
-            return json.dumps({"ok": True, "checks": checks, "count": len(checks), "fixture_network": fixture["network"], "redirect": True, "users_removed": True})
+            return json.dumps({"ok": True, "checks": checks, "count": len(checks), "fixture_network": fixture["network"], "scenario": scenario, "users_removed": True})
         status, body = request("/session")
         require("user" not in body, "Anonymous HTTP request receives no session data")
         status, body = request("/session", "nonmember")
@@ -449,7 +531,7 @@ ClassMethod Run(baseURL As %String = "http://127.0.0.1:52773/allfedo/api", redir
             page.read()
         status, body = request("/session", opener=browser)
         require(status == 200 and body.get("user", {}).get("role") == "kitchen", "Native login form authenticates the shared API session without JavaScript passwords")
-        return json.dumps({"ok": True, "checks": checks, "count": len(checks), "fixture_network": fixture["network"], "users_removed": True})
+        return json.dumps({"ok": True, "checks": checks, "count": len(checks), "fixture_network": fixture["network"], "scenario": scenario, "users_removed": True})
     finally:
         iris.cls("AllfedoWebScenario").RemoveUsers(credentials)
 }

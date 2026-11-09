@@ -493,6 +493,24 @@ export async function onwardJourney(ui) {
     1,
     "The original receiver’s0 must not look like a total across linked receiving cases.",
   );
+  assert.equal(
+    await coordinator
+      .getByRole("link", {
+        name: "Onward collection · 15 meal boxes accepted",
+        exact: true,
+      })
+      .count(),
+    1,
+  );
+  assert.equal(
+    await coordinator
+      .getByRole("link", {
+        name: "Onward collection · 3 meal boxes accepted",
+        exact: true,
+      })
+      .count(),
+    1,
+  );
   await shot(coordinator, "onward-original-case");
   for (const page of [collector, recipient2])
     assert.equal(

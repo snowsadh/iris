@@ -93,7 +93,7 @@ ClassMethod ResourceKeys(action As %String, data As %DynamicObject, actor As All
             Set change=..Open("Allfedo.Record.ChangeRequest",data."change_id")
             Do ..Require($IsObject(change)&&(change.NetworkId=actor.NetworkId),"This proposed change is outside your network.")
             Set keys("change:"_change.%Id())=1,allocation=..Open("Allfedo.Record.Allocation",change.AllocationId)
-        } ElseIf action="correct_custody" {
+        } ElseIf $ListFind($ListBuild("correct_custody","transfer_rejected"),action) {
             Set fact=..Open("Allfedo.Record.Custody",data."custody_id")
             Do ..Require($IsObject(fact)&&(fact.NetworkId=actor.NetworkId),"This physical report is outside your network.")
             Set keys("custody:"_fact.%Id())=1,keys("offer:"_fact.OfferId)=1
@@ -147,6 +147,7 @@ ClassMethod Change(actor As Allfedo.Record.Actor, action As %String, data As %Dy
     If action="request_change" Quit ##class(Allfedo.Recovery).RequestChange(actor,data)
     If action="respond_change" Quit ##class(Allfedo.Recovery).RespondChange(actor,data)
     If action="acknowledge_trip" Quit ##class(Allfedo.Recovery).AcknowledgeTrip(actor,data)
+    If action="transfer_rejected" Quit ##class(Allfedo.Recovery).TransferRejected(actor,data)
     If action="correct_custody" Quit ##class(Allfedo.Recovery).CorrectCustody(actor,data)
     If $ListFind($ListBuild("handoff","receive","receive_more","record_disposition"),action) Quit ##class(Allfedo.Recovery).RecordPhysical(actor,action,data)
     Quit ..AllocationChange(actor,action,data)
@@ -337,7 +338,7 @@ ClassMethod Source(actor As Allfedo.Record.Actor, kind As %String, data As %Dyna
 {
     Set source=##class(Allfedo.Record.Source).%New()
     Set source.NetworkId=actor.NetworkId, source.OrganizationId=actor.OrganizationId, source.SenderName=actor.DisplayName, source.ActorId=actor.%Id(), source.Kind=kind, source.RecordedAt=##class(Allfedo.Policy).Now(), source.EventAt=##class(Allfedo.Policy).Instant(data."event_at"), source.BodyJSON=data.%ToJSON()
-    Do ..Require(source.EventAt<=source.RecordedAt+60,"A source event cannot be in the future.")
+    Do ..Require(source.EventAt<=(source.RecordedAt+60),"A source event cannot be in the future.")
     Do ..Save(source)
     Quit source
 }

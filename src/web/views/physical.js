@@ -345,8 +345,9 @@ export function physicalHistory(ctx, record) {
     receipt: "Accepted at receiving site",
     lost: "Collector reported loss",
     discarded: "Collector discarded food",
-    returned: "Returned to kitchen · quarantined",
-    rejected_at_site: "Rejected and kept at receiving site",
+    returned: "Kitchen received returned food",
+    rejected_at_site: "Original rejection at receiving site",
+    recipient_disposed: "Receiving team disposed of rejected food",
     quarantine_disposed: "Kitchen disposed of quarantined food",
   };
   return el(
@@ -358,14 +359,20 @@ export function physicalHistory(ctx, record) {
       { className: "panel" },
       reports.map((report) => {
         const zone =
-          (["receipt", "rejected_at_site"].includes(report.kind)
+          (["receipt", "rejected_at_site", "recipient_disposed"].includes(
+            report.kind,
+          )
             ? record.need?.site?.time_zone
             : (record.offer || record).site?.time_zone) || "UTC";
         return el(
           "section",
           { className: "source" },
           tag(
-            report.active ? "Current report" : "Replaced by a correction",
+            report.active
+              ? report.kind === "rejected_at_site"
+                ? "Original rejection report"
+                : "Current report"
+              : "Replaced by a correction",
             report.active ? "" : "warning",
           ),
           el("h3", {}, labels[report.kind] || "Physical food report"),
@@ -375,7 +382,22 @@ export function physicalHistory(ctx, record) {
             ["Actually happened", time(report.occurred_at, zone)],
             ["Added to the record", time(report.recorded_at, zone)],
           ]),
+          report.from_custody_id &&
+            el(
+              "p",
+              { className: "help" },
+              `Linked to rejection report ${report.from_custody_id}. This records what happened to food already rejected.`,
+            ),
+          report.kind === "rejected_at_site" &&
+            report.transferable_quantity !== undefined &&
+            facts([
+              [
+                "Expected still held at the receiving site",
+                boxCount(report.transferable_quantity),
+              ],
+            ]),
           report.note && el("p", {}, report.note),
+          rejectedFoodActions(ctx, record, report),
           report.agreement_issue && notice(report.agreement_issue, "warning"),
           report.can_correct &&
             disclosure(
@@ -439,6 +461,95 @@ export function physicalHistory(ctx, record) {
             ),
         );
       }),
+    ),
+  );
+}
+
+/** Each later movement belongs to its original rejection; native flags decide who may report it. */
+function rejectedFoodActions(ctx, record, report) {
+  const actions = [
+    {
+      allowed: report.can_confirm_return,
+      outcome: "returned_to_kitchen",
+      title: "Confirm rejected food returned to this kitchen",
+      label: "Rejected meal boxes physically received back",
+      button: "Record actual return to kitchen",
+      zone: (record.offer || record).site?.time_zone,
+      description:
+        "Use this only after the rejected food physically arrived back at your kitchen. Keep it separate from usable food; it will not become available for another invitation.",
+      confirmation:
+        "This rejected food physically arrived at our kitchen and is kept separate from usable food.",
+    },
+    {
+      allowed: report.can_confirm_disposal,
+      outcome: "disposed_at_recipient",
+      title: "Record disposal of rejected food at this site",
+      label: "Rejected meal boxes physically disposed of here",
+      button: "Record actual disposal at this site",
+      zone: record.need?.site?.time_zone,
+      description:
+        "Use this after your team physically disposed of rejected food at this receiving site. This follows up the original rejection; it does not record more food accepted.",
+      confirmation:
+        "Our receiving team physically disposed of this rejected food at this site.",
+    },
+  ].filter((action) => action.allowed);
+  if (!actions.length) return null;
+  return el(
+    "div",
+    {},
+    actions.map((action) =>
+      disclosure(
+        Number(report.transferable_quantity) === 0
+          ? action.outcome === "returned_to_kitchen"
+            ? "Record an unexpected return from this rejection"
+            : "Record unexpected disposal from this rejection"
+          : action.title,
+        actionForm({
+          title: action.title,
+          description: action.description,
+          submit: action.button,
+          physicalReport: true,
+          fields: [
+            field(action.label, {
+              id: `rejection-${action.outcome}-${report.id}-quantity`,
+              name: "quantity",
+              type: "number",
+              min: 1,
+              required: true,
+              help: `The linked reports currently leave ${boxCount(report.transferable_quantity)} expected at the receiving site. Record the actual count; a difference will stay visible for review.`,
+            }),
+            occurrenceFields(
+              `rejection-${action.outcome}-${report.id}`,
+              action.zone,
+            ),
+            field("What happened, and where?", {
+              id: `rejection-${action.outcome}-${report.id}-note`,
+              name: "note",
+              type: "textarea",
+              required: true,
+              maxLength: 2000,
+            }),
+            confirm(action.confirmation),
+          ],
+          onSubmit: (data, error) =>
+            ctx.mutate(
+              "transfer_rejected",
+              data && {
+                custody_id: report.id,
+                revision: report.revision,
+                quantity: data.get("quantity"),
+                outcome: action.outcome,
+                occurred_at: occurredAt(data, action.zone, ctx.now),
+                note: data.get("note"),
+              },
+              error,
+              {
+                message:
+                  "Rejected-food follow-up recorded. The accepted meal count has not changed.",
+              },
+            ),
+        }),
+      ),
     ),
   );
 }

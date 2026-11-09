@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { readFile, mkdir } from "node:fs/promises";
 import { chromium } from "playwright";
 import { onwardJourney } from "./redirect.mjs";
+import { rejectedFoodJourney } from "./rejected-food.mjs";
 
 const accountPath = process.env.ALLFEDO_BROWSER_ACCOUNTS;
 if (!accountPath) {
@@ -813,6 +814,22 @@ try {
   );
 
   await onwardJourney({
+    pages,
+    get,
+    open,
+    shot,
+    clock,
+    saveSite,
+    enterFood,
+    token,
+    collectorId: String(accounts.collector.actor_id),
+    results,
+    setStep(value) {
+      step = value;
+    },
+  });
+
+  await rejectedFoodJourney({
     pages,
     get,
     open,

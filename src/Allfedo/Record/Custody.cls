@@ -9,11 +9,13 @@ Property Kind As %String [ Required ];
 Property Active As %Boolean [ InitialExpression = 1 ];
 Property Revision As %Integer [ InitialExpression = 1 ];
 Property SupersedesId As %String;
+Property FromCustodyId As %String;
 Property Quantity As %Integer(MINVAL = 0) [ Required ];
 Property OccurredAt As %BigInt [ Required ];
 Property RecordedAt As %BigInt [ Required ];
 Property SourceId As %String [ Required ];
 Property AgreementIssue As %String(MAXLEN = 2000);
+Index ByOrigin On FromCustodyId;
 Index OfferHistory On (OfferId, OccurredAt);
 Index AllocationHistory On (AllocationId, OccurredAt);
 
@@ -61,6 +63,9 @@ Storage Default
 </Value>
 <Value name="14">
 <Value>AgreementIssue</Value>
+</Value>
+<Value name="15">
+<Value>FromCustodyId</Value>
 </Value>
 </Data>
 <DataLocation>^Allfedo.Record.CustodyD</DataLocation>

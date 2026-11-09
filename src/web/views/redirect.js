@@ -133,7 +133,7 @@ export function redirectContext(ctx, record) {
             {},
             child.can_open
               ? link(
-                  `Onward collection · ${boxCount(child.quantity)}`,
+                  `Onward collection · ${typeof child.received_quantity === "string" && ["received", "partial_closed"].includes(child.state) ? `${boxCount(child.received_quantity)} accepted` : `${boxCount(child.quantity)} committed`}`,
                   `/allocations/${child.id}`,
                 )
               : `${boxCount(child.quantity)} in an onward collection`,

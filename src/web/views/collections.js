@@ -470,6 +470,8 @@ export function collectionDetail(ctx) {
     summary,
     el("h2", { className: "section-gap" }, record.offer.description),
   );
+  if (record.recovery.review_issue)
+    append(summary, notice(record.recovery.review_issue, "warning"));
   append(summary, redirectContext(ctx, record));
   if (isReceipt) {
     append(summary, custody(record));

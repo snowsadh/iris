@@ -143,8 +143,8 @@ ClassMethod Balance(allocation As Allfedo.Record.Allocation) As %DynamicObject
 {
     Set stock=allocation.StockCommittedQuantity
     If stock="" Set stock=$Select(allocation.State="held":0,allocation.Quantity>allocation.CollectedQuantity:allocation.Quantity-allocation.CollectedQuantity,1:0)
-    Set unknown=$Select(allocation.CollectedQuantity>allocation.ReceivedQuantity+allocation.AccountedQuantity+allocation.TransferredOutQuantity:allocation.CollectedQuantity-allocation.ReceivedQuantity-allocation.AccountedQuantity-allocation.TransferredOutQuantity,1:0)
-    Set unmatched=$Select(allocation.ReceivedQuantity+allocation.AccountedQuantity+allocation.TransferredOutQuantity>allocation.CollectedQuantity:allocation.ReceivedQuantity+allocation.AccountedQuantity+allocation.TransferredOutQuantity-allocation.CollectedQuantity,1:0)
+    Set unknown=$Select(allocation.CollectedQuantity>(allocation.ReceivedQuantity+allocation.AccountedQuantity+allocation.TransferredOutQuantity):allocation.CollectedQuantity-allocation.ReceivedQuantity-allocation.AccountedQuantity-allocation.TransferredOutQuantity,1:0)
+    Set unmatched=$Select((allocation.ReceivedQuantity+allocation.AccountedQuantity+allocation.TransferredOutQuantity)>allocation.CollectedQuantity:allocation.ReceivedQuantity+allocation.AccountedQuantity+allocation.TransferredOutQuantity-allocation.CollectedQuantity,1:0)
     Set cannot=$Select(allocation.AccountedQuantity>allocation.SettledHandedQuantity:allocation.AccountedQuantity-allocation.SettledHandedQuantity,1:0)
     Quit {"kitchen_handoff_quantity":(""_(allocation.CollectedQuantity-allocation.TransferredInQuantity)),"unhanded_quantity":(""_stock),"physical_unknown_quantity":(""_unknown),"unmatched_report_quantity":(""_unmatched),"cannot_arrive_quantity":(""_cannot),"accounted_quantity":(""_allocation.AccountedQuantity)}
 }
@@ -160,9 +160,11 @@ ClassMethod RefreshCase(allocation As Allfedo.Record.Allocation)
         If kind="lost" Set lost=lost+query.Total
         If kind="rejected_at_site" Set rejected=rejected+query.Total
         If kind="returned" Set returned=returned+query.Total
-        If kind="discarded" Set disposed=disposed+query.Total
+        If (kind="discarded")||(kind="recipient_disposed") Set disposed=disposed+query.Total
     }
     Do ##class(Allfedo.Rescue).QueryOK(query)
+    Set rejectedBalance=..RejectionBalances(allocation.%Id()),rejected=+rejectedBalance.remaining,linkConflict=rejectedBalance.conflict
+    If linkConflict Set allocation.CustodyIssue="A linked movement exceeds its current rejection report. Other rejected portions remain separate; review the physical counts."
     Set accounted=lost+rejected+returned+disposed
     Set allocation.CollectedQuantity=handed, allocation.ReceivedQuantity=received, allocation.AccountedQuantity=accounted, allocation.LostQuantity=lost, allocation.RejectedQuantity=rejected, allocation.ReturnedQuantity=returned, allocation.DisposedQuantity=disposed
     Set original=+allocation.OriginalPromiseQuantity, stock=original-handed-allocation.CancelledUnhandedQuantity
@@ -176,7 +178,7 @@ ClassMethod RefreshCase(allocation As Allfedo.Record.Allocation)
     If allocation.ClosedUnknownQuantity>unknown Set allocation.ClosedUnknownQuantity=unknown
     Set allocation.UnresolvedQuantity=stock+unknown+cannot
     If unmatched>allocation.UnresolvedQuantity Set allocation.UnresolvedQuantity=unmatched
-    If unmatched>0 {
+    If (unmatched>0)||linkConflict {
         Set allocation.State="custody_review"
     } ElseIf (allocation.ClosedUnknownQuantity>0)&&(stock=0) {
         Set allocation.State="closed_unconfirmed"
@@ -223,7 +225,7 @@ ClassMethod RebuildCommitments(offer As Allfedo.Record.Offer, need As Allfedo.Re
     }
     Do ##class(Allfedo.Rescue).QueryOK(query)
     Set need.HeldQuantity=held,need.CommittedQuantity=committed
-    If held+committed>need.RequestedQuantity Set need.State="review_required"
+    If (held+committed)>need.RequestedQuantity Set need.State="review_required"
 }
 
 ClassMethod StorePhysical(actor As Allfedo.Record.Actor, allocation As Allfedo.Record.Allocation, kind As %String, data As %DynamicObject, issue As %String = "", supersedes As %String = "") As Allfedo.Record.Custody
@@ -231,6 +233,7 @@ ClassMethod StorePhysical(actor As Allfedo.Record.Actor, allocation As Allfedo.R
     Set source=..Evidence(actor,kind,data), fact=##class(Allfedo.Record.Custody).%New()
     Set fact.NetworkId=actor.NetworkId,fact.AllocationId=$Select($IsObject(allocation):allocation.%Id(),1:""),fact.OfferId=data.%Get("offer_id"),fact.ActorId=actor.%Id(),fact.Kind=kind,fact.Quantity=+data.quantity,fact.OccurredAt=##class(Allfedo.Policy).Instant(data."occurred_at"),fact.RecordedAt=##class(Allfedo.Policy).Now(),fact.SourceId=source.%Id(),fact.AgreementIssue=issue,fact.SupersedesId=supersedes
     If $IsObject(allocation) Set fact.OfferId=allocation.OfferId
+    Set fact.FromCustodyId=data.%Get("from_custody_id")
     Do ##class(Allfedo.Rescue).Save(fact)
     Quit fact
 }
@@ -274,7 +277,7 @@ ClassMethod RecordPhysical(actor As Allfedo.Record.Actor, action As %String, dat
             Set receiving=agreement.details.receiving,food=agreement.details.food
             If (receiving."receiving_from"="")||(occurrence<##class(Allfedo.Policy).Instant(receiving."receiving_from"))||(occurrence>=##class(Allfedo.Policy).Instant(receiving."receiving_until"))||(occurrence>##class(Allfedo.Policy).Instant(food."handling_until")) Set issue="The actual receiving time fell outside the recorded receiving or food-handling window. The accepted food remains recorded."
         }
-        If allocation.ReceivedQuantity+quantity+allocation.AccountedQuantity>allocation.CollectedQuantity Set issue="This receiving report is not yet matched to a recorded kitchen handoff."
+        If (allocation.ReceivedQuantity+quantity+allocation.AccountedQuantity)>allocation.CollectedQuantity Set issue="This receiving report is not yet matched to a recorded kitchen handoff."
     } Else {
         Set kind=$Select(data.outcome="returned_to_kitchen":"returned",1:data.outcome)
         If kind="returned" {
@@ -285,7 +288,7 @@ ClassMethod RecordPhysical(actor As Allfedo.Record.Actor, action As %String, dat
             Do ##class(Allfedo.Rescue).Require((actor.Role="collector")&&(allocation.CollectorActorId=actor.%Id()),"Only the assigned collector can report loss or disposal of food in their custody.")
         }
         Do ##class(Allfedo.Rescue).Require(data.note'="","Explain what happened and where the food was last known to be.")
-        If allocation.ReceivedQuantity+allocation.AccountedQuantity+quantity>allocation.CollectedQuantity Set issue="This disposition is not yet matched to the recorded handed-over amount."
+        If (allocation.ReceivedQuantity+allocation.AccountedQuantity+quantity)>allocation.CollectedQuantity Set issue="This disposition is not yet matched to the recorded handed-over amount."
     }
     Set physical=..StorePhysical(actor,allocation,kind,data,issue), allocation.OutcomeNote=data.note
     If issue'="" Set allocation.CustodyIssue=issue,offer.State="review_required"
@@ -312,7 +315,7 @@ ClassMethod AssertCompatible(offer As Allfedo.Record.Offer, need As Allfedo.Reco
     Do ##class(Allfedo.Rescue).ConfirmedSource(offer.SourceId,offer.NetworkId,offer.OrganizationId,"offer_confirmation")
     Do ##class(Allfedo.Rescue).ConfirmedSource(need.SourceId,need.NetworkId,need.OrganizationId,"need_confirmation")
     Set now=##class(Allfedo.Policy).Now()
-    Do ##class(Allfedo.Rescue).Require((##class(Allfedo.Facts).NeedState(need)="open")&&(need.HeldQuantity+need.CommittedQuantity<=need.RequestedQuantity),"The receiving need or existing promises require review before confirming this trip.")
+    Do ##class(Allfedo.Rescue).Require((##class(Allfedo.Facts).NeedState(need)="open")&&((need.HeldQuantity+need.CommittedQuantity)<=need.RequestedQuantity),"The receiving need or existing promises require review before confirming this trip.")
     Do ##class(Allfedo.Rescue).Require((offer.Unit=need.Unit)&&(offer.Unit="meal_box"),"Food and receiving need must use supported whole meal boxes.")
     Do ##class(Allfedo.Rescue).Require((offer.Holding'="")&&(offer.HandlingUntil'="")&&(arrival<=offer.HandlingUntil)&&(arrival>now),"The kitchen must confirm holding and a handling deadline that covers the agreed arrival.")
     Do ##class(Allfedo.Rescue).Require((need.ReceivingFrom'="")&&(arrival>=need.ReceivingFrom)&&(arrival<need.ReceivingUntil)&&(now<need.ConfirmedUntil),"The arrival must fit this partner's current confirmed receiving window.")
@@ -376,7 +379,7 @@ ClassMethod ResumeOffer(actor As Allfedo.Record.Actor, data As %DynamicObject) A
     Set projected=..RebuildStock(offer)
     Do ##class(Allfedo.Rescue).Require('projected."review_required","The physical stock history is still uncertain. Confirm a fresh count or correct the conflicting report.")
     Do ##class(Allfedo.Rescue).Require(##class(Allfedo.Facts).FoodFactsState(offer)="open","Food, place, or handling details are missing or expired. The kitchen must confirm them.")
-    Do ##class(Allfedo.Rescue).Require((offer.CurrentQuantity-offer.CollectedQuantity)>=offer.HeldQuantity+offer.CommittedQuantity,"Existing food promises still exceed the confirmed usable stock. Agree the affected changes first.")
+    Do ##class(Allfedo.Rescue).Require((offer.CurrentQuantity-offer.CollectedQuantity)>=(offer.HeldQuantity+offer.CommittedQuantity),"Existing food promises still exceed the confirmed usable stock. Agree the affected changes first.")
     Set query=##class(%SQL.Statement).%ExecDirect(,"SELECT ID FROM Allfedo_Record.Allocation WHERE OfferId=? AND AcceptedByActorId IS NOT NULL",offer.%Id())
     Do ##class(Allfedo.Rescue).QueryOK(query)
     While query.%Next() {
@@ -454,7 +457,7 @@ ClassMethod RespondChange(actor As Allfedo.Record.Actor, data As %DynamicObject)
             Do ##class(Allfedo.Rescue).Require((data.%GetTypeOf("need_total")'="null")&&(data.%GetTypeOf("need_revision")'="null")&&(need.Revision=data."need_revision"),"Confirm the full current receiving need and its current revision; replacement demand is not inferred.")
             Set full={"need_id":(""_need.%Id()),"revision":(need.Revision),"quantity":(data."need_total"),"unit":(need.Unit),"receiving_from":(##class(Allfedo.Policy).ISO(need.ReceivingFrom)),"receiving_until":(##class(Allfedo.Policy).ISO(need.ReceivingUntil)),"confirmed_until":(##class(Allfedo.Policy).ISO(need.ConfirmedUntil)),"excluded_allergens":(##class(Allfedo.Rescue).ParseArray(need.ExcludedAllergensJSON)),"accepted_holding":(##class(Allfedo.Rescue).ParseArray(need.AcceptedHoldingJSON)),"event_at":(##class(Allfedo.Policy).NowISO())}
             Set needSource=##class(Allfedo.Rescue).Source(actor,"need_confirmation",full),need.RequestedQuantity=+data."need_total",need.SourceId=needSource.%Id(),need.ContactActorId=actor.%Id(),need.Revision=need.Revision+1,change.RecipientNeedSourceId=needSource.%Id(),change.NeedBaseSourceId=needSource.%Id()
-            If need.HeldQuantity+need.CommittedQuantity>need.RequestedQuantity Set need.State="review_required"
+            If (need.HeldQuantity+need.CommittedQuantity)>need.RequestedQuantity Set need.State="review_required"
             Do ##class(Allfedo.Rescue).Save(need)
         }
     } ElseIf party="kitchen" {
@@ -495,7 +498,7 @@ ClassMethod ApplyChangeIfReady(change As Allfedo.Record.ChangeRequest, allocatio
     Do ..RefreshCase(allocation),##class(Allfedo.Rescue).Save(allocation)
     Do ..RebuildCommitments(offer,need)
     Set need.Revision=need.Revision+1,offer.Revision=offer.Revision+1
-    If need.CommittedQuantity+need.HeldQuantity<=need.RequestedQuantity Set need.State="open"
+    If (need.CommittedQuantity+need.HeldQuantity)<=need.RequestedQuantity Set need.State="open"
     Set need.State=##class(Allfedo.Facts).NeedState(need)
     Set change.State="applied",change.CompletedAt=##class(Allfedo.Policy).Now(),change.Revision=change.Revision+1
     Do ##class(Allfedo.Rescue).Save(change),##class(Allfedo.Rescue).Save(offer),##class(Allfedo.Rescue).Save(need)
@@ -532,7 +535,7 @@ ClassMethod ChangeView(change As Allfedo.Record.ChangeRequest) As %DynamicObject
 
 ClassMethod View(allocation As Allfedo.Record.Allocation, actor As Allfedo.Record.Actor = "") As %DynamicObject
 {
-    Set view=..Balance(allocation),view."offered_quantity"=""_allocation.OfferedQuantity,view."original_promise_quantity"=""_allocation.OriginalPromiseQuantity
+    Set view=..Balance(allocation),view."review_issue"=allocation.CustodyIssue,view."offered_quantity"=""_allocation.OfferedQuantity,view."original_promise_quantity"=""_allocation.OriginalPromiseQuantity
     If allocation.OfferedQuantity="" Do view.%Set("offered_quantity","","null")
     If allocation.OriginalPromiseQuantity="" Do view.%Set("original_promise_quantity","","null")
     Set view."stock_committed_quantity"=view."unhanded_quantity",view."lost_quantity"=""_allocation.LostQuantity,view."rejected_quantity"=""_allocation.RejectedQuantity,view."returned_quantity"=""_allocation.ReturnedQuantity,view."disposed_quantity"=""_allocation.DisposedQuantity,view."settled_handed_quantity"=""_allocation.SettledHandedQuantity,view."closed_unknown_quantity"=""_allocation.ClosedUnknownQuantity,view."current_context"=..CurrentContext(allocation)
@@ -577,10 +580,84 @@ ClassMethod History(offerId As %String, actor As Allfedo.Record.Actor = "", allo
     While query.%Next() {
         Set fact=##class(Allfedo.Rescue).Open("Allfedo.Record.Custody",query.ID),source=##class(Allfedo.Rescue).Open("Allfedo.Record.Source",fact.SourceId),body=##class(Allfedo.Rescue).Parse(source.BodyJSON)
         Set item={"id":(""_fact.%Id()),"revision":(fact.Revision),"active":(fact.Active),"kind":(fact.Kind),"quantity":(""_fact.Quantity),"occurred_at":(body."occurred_at"),"recorded_at":(##class(Allfedo.Policy).ISO(fact.RecordedAt)),"source_id":(""_fact.SourceId),"actor_name":(source.SenderName),"note":(body.%Get("note")),"agreement_issue":(fact.AgreementIssue),"supersedes_id":(fact.SupersedesId)}
-        Do item.%Set("can_correct",..CanCorrect(actor,fact),"boolean"),history.%Push(item)
+        Set item."from_custody_id"=""_fact.FromCustodyId,item."transferable_quantity"=""_..RejectedRemaining(fact)
+        Do item.%Set("can_correct",..CanCorrect(actor,fact),"boolean"),item.%Set("can_confirm_return",..CanTransfer(actor,fact,"returned_to_kitchen"),"boolean"),item.%Set("can_confirm_disposal",..CanTransfer(actor,fact,"disposed_at_recipient"),"boolean"),history.%Push(item)
     }
     Do ##class(Allfedo.Rescue).QueryOK(query)
     Quit history
+}
+
+/// Corrections retain one logical source portion for later physical movements.
+ClassMethod CustodyRoot(fact As Allfedo.Record.Custody) As %String
+{
+    Set root=fact
+    While root.SupersedesId'="" {
+        Set previous=##class(Allfedo.Rescue).Open("Allfedo.Record.Custody",root.SupersedesId)
+        Do ##class(Allfedo.Rescue).Require($IsObject(previous)&&(previous.Kind=fact.Kind)&&(previous.AllocationId=fact.AllocationId),"The correction history needs review before linking a physical movement.")
+        Set root=previous
+    }
+    Quit ""_root.%Id()
+}
+
+ClassMethod MovedFrom(rootId As %String) As %Integer
+{
+    Set query=##class(%SQL.Statement).%ExecDirect(,"SELECT COALESCE(SUM(Quantity),0) AS Total FROM Allfedo_Record.Custody WHERE FromCustodyId=? AND Active=1 AND Kind IN ('returned','recipient_disposed')",rootId)
+    Do ##class(Allfedo.Rescue).QueryOK(query)
+    Do ##class(Allfedo.Rescue).Require(query.%Next(),"The rejected-food movements could not be read.")
+    Do ##class(Allfedo.Rescue).QueryOK(query)
+    Quit +query.Total
+}
+
+ClassMethod RejectedRemaining(fact As Allfedo.Record.Custody) As %Integer
+{
+    If 'fact.Active||(fact.Kind'="rejected_at_site") Quit 0
+    Set remaining=fact.Quantity-..MovedFrom(..CustodyRoot(fact))
+    Quit $Select(remaining>0:remaining,1:0)
+}
+
+/// A movement belongs to its reported portion, never to another rejection that happens to share the case.
+ClassMethod RejectionBalances(allocationId As %String) As %DynamicObject
+{
+    Set remaining=0,conflict=0,query=##class(%SQL.Statement).%ExecDirect(,"SELECT ID FROM Allfedo_Record.Custody WHERE AllocationId=? AND Kind='rejected_at_site' AND Active=1",allocationId)
+    Do ##class(Allfedo.Rescue).QueryOK(query)
+    While query.%Next() {
+        Set fact=##class(Allfedo.Rescue).Open("Allfedo.Record.Custody",query.ID),moved=..MovedFrom(..CustodyRoot(fact)),left=fact.Quantity-moved
+        If left<0 { Set conflict=1 } Else { Set remaining=remaining+left }
+    }
+    Do ##class(Allfedo.Rescue).QueryOK(query)
+    Quit {"remaining":(remaining),"conflict":(conflict)}
+}
+
+ClassMethod CanTransfer(actor As Allfedo.Record.Actor, fact As Allfedo.Record.Custody, outcome As %String) As %Boolean
+{
+    If '$IsObject(actor) Quit 0
+    If 'actor.Active||(actor.NetworkId'=fact.NetworkId)||'fact.Active||(fact.Kind'="rejected_at_site") Quit 0
+    Set allocation=##class(Allfedo.Rescue).Open("Allfedo.Record.Allocation",fact.AllocationId),offer=##class(Allfedo.Rescue).Open("Allfedo.Record.Offer",fact.OfferId),need=##class(Allfedo.Rescue).Open("Allfedo.Record.Need",allocation.NeedId)
+    If outcome="returned_to_kitchen" Quit (actor.Role="kitchen")&&(actor.OrganizationId=offer.OrganizationId)
+    If outcome="disposed_at_recipient" Quit (actor.Role="recipient")&&(actor.OrganizationId=need.OrganizationId)
+    Quit 0
+}
+
+/// Rejected food may move later. Count that portion once, while preserving both original reports.
+ClassMethod TransferRejected(actor As Allfedo.Record.Actor, data As %DynamicObject) As %DynamicObject
+{
+    Set origin=##class(Allfedo.Rescue).Open("Allfedo.Record.Custody",data."custody_id")
+    Do ##class(Allfedo.Rescue).Require($IsObject(origin)&&origin.Active&&(origin.Revision=data.revision)&&(origin.Kind="rejected_at_site")&&(origin.NetworkId=actor.NetworkId),"Read the current rejection report before recording where its food moved.")
+    Do ##class(Allfedo.Rescue).Require(..CanTransfer(actor,origin,data.outcome),"The kitchen must confirm actual returned arrival, or the receiving team must confirm actual disposal at its site.")
+    Do ##class(Allfedo.Rescue).Require(data.note'="","Explain where the food arrived or how it was disposed of. The earlier rejection stays in history.")
+    Set allocation=##class(Allfedo.Rescue).Open("Allfedo.Record.Allocation",origin.AllocationId),offer=##class(Allfedo.Rescue).Open("Allfedo.Record.Offer",origin.OfferId),need=##class(Allfedo.Rescue).Open("Allfedo.Record.Need",allocation.NeedId)
+    Do ..Prepare(offer,allocation)
+    Set remaining=..RejectedRemaining(origin),issue=""
+    If +data.quantity>remaining Set issue="The actual movement exceeds the remaining rejected count. Review the original physical reports."
+    Set body=##class(Allfedo.Rescue).Parse(data.%ToJSON()),body."allocation_id"=""_allocation.%Id(),body."from_custody_id"=..CustodyRoot(origin)
+    Set kind=$Select(data.outcome="returned_to_kitchen":"returned",1:"recipient_disposed"),fact=..StorePhysical(actor,allocation,kind,body,issue),allocation.OutcomeNote=data.note
+    Do ..RefreshCase(allocation)
+    If issue'="" Set allocation.CustodyIssue=issue,offer.State="review_required",need.State="review_required"
+    Set allocation.Revision=allocation.Revision+1
+    Do ##class(Allfedo.Rescue).Save(allocation),..RebuildCommitments(offer,need)
+    Set projection=..RebuildStock(offer),offer.Revision=offer.Revision+1,need.Revision=need.Revision+1
+    Do ##class(Allfedo.Rescue).Save(offer),##class(Allfedo.Rescue).Save(need),##class(Allfedo.Rescue).Event(actor,"rejected_food_moved",allocation.%Id(),body)
+    Quit {"ok":true,"allocation_id":(""_allocation.%Id()),"revision":(allocation.Revision),"state":(allocation.State),"physical_report_saved":true,"custody_id":(""_fact.%Id()),"offer_id":(""_offer.%Id()),"agreement_issue":(issue),"accounted_quantity":(""_allocation.AccountedQuantity),"rejected_quantity":(""_allocation.RejectedQuantity),"returned_quantity":(""_allocation.ReturnedQuantity),"disposed_quantity":(""_allocation.DisposedQuantity)}
 }
 
 ClassMethod DisposeQuarantined(actor As Allfedo.Record.Actor, data As %DynamicObject) As %DynamicObject
@@ -590,7 +667,7 @@ ClassMethod DisposeQuarantined(actor As Allfedo.Record.Actor, data As %DynamicOb
     Do ##class(Allfedo.Rescue).Require(data.note'="","Record how the quarantined food was disposed of.")
     Do ..Prepare(offer)
     Set fact=..StorePhysical(actor,"","quarantine_disposed",data),projected=..RebuildStock(offer),offer.Revision=offer.Revision+1
-    If offer.Revision'=data.revision+1 Set offer.State="review_required"
+    If offer.Revision'=(data.revision+1) Set offer.State="review_required"
     Do ##class(Allfedo.Rescue).Save(offer),##class(Allfedo.Rescue).Event(actor,"quarantine_disposed",offer.%Id(),data)
     Quit {"ok":true,"offer_id":(""_offer.%Id()),"revision":(offer.Revision),"state":(offer.State),"custody_id":(""_fact.%Id()),"quarantined_quantity":(""_offer.QuarantinedQuantity),"physical_report_saved":true}
 }
@@ -608,6 +685,7 @@ ClassMethod CorrectCustody(actor As Allfedo.Record.Actor, data As %DynamicObject
     Do ..Prepare(offer,allocation)
     Set body=##class(Allfedo.Rescue).Parse(data.%ToJSON()),body."offer_id"=""_offer.%Id()
     If $IsObject(allocation) Set body."allocation_id"=""_allocation.%Id()
+    If previous.FromCustodyId'="" Set body."from_custody_id"=""_previous.FromCustodyId
     Set next=..StorePhysical(actor,allocation,previous.Kind,body,"Corrected physical report; previous source remains in history.",previous.%Id()),previous.Active=0,previous.Revision=previous.Revision+1
     Do ##class(Allfedo.Rescue).Save(previous)
     If $IsObject(allocation) {
@@ -618,7 +696,7 @@ ClassMethod CorrectCustody(actor As Allfedo.Record.Actor, data As %DynamicObject
     }
     Set projected=..RebuildStock(offer),offer.State="review_required",offer.Revision=offer.Revision+1
     Do ##class(Allfedo.Rescue).Save(offer),##class(Allfedo.Rescue).Event(actor,"custody_corrected",previous.%Id(),body)
-    Quit {"ok":true,"custody_id":(""_next.%Id()),"supersedes_id":(""_previous.%Id()),"offer_id":(""_offer.%Id()),"state":"review_required"}
+    Quit {"ok":true,"custody_id":(""_next.%Id()),"supersedes_id":(""_previous.%Id()),"allocation_id":($Select($IsObject(allocation):""_allocation.%Id(),1:"")),"offer_id":(""_offer.%Id()),"state":"review_required"}
 }
 
 ClassMethod CanCorrect(actor As Allfedo.Record.Actor, fact As Allfedo.Record.Custody) As %Boolean
@@ -629,7 +707,7 @@ ClassMethod CanCorrect(actor As Allfedo.Record.Actor, fact As Allfedo.Record.Cus
     If $ListFind($ListBuild("handoff","returned","quarantine_disposed"),fact.Kind) Quit (actor.Role="kitchen")&&(actor.OrganizationId=offer.OrganizationId)
     If fact.AllocationId="" Quit 0
     Set allocation=##class(Allfedo.Rescue).Open("Allfedo.Record.Allocation",fact.AllocationId),need=##class(Allfedo.Rescue).Open("Allfedo.Record.Need",allocation.NeedId)
-    If $ListFind($ListBuild("receipt","rejected_at_site"),fact.Kind) Quit (actor.Role="recipient")&&(actor.OrganizationId=need.OrganizationId)
+    If $ListFind($ListBuild("receipt","rejected_at_site","recipient_disposed"),fact.Kind) Quit (actor.Role="recipient")&&(actor.OrganizationId=need.OrganizationId)
     If $ListFind($ListBuild("lost","discarded"),fact.Kind) Quit (actor.Role="collector")&&(actor.%Id()=fact.ActorId)
     Quit 0
 }
