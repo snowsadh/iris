@@ -45,7 +45,7 @@ ClassMethod CreateUser(username As %String, password As %String)
     New $NAMESPACE
     Set $NAMESPACE="%SYS"
     If ##class(Security.Users).Exists(username) Throw ##class(%Exception.General).%New("The generated test account already exists.")
-    Set status=##class(Security.Users).Create(username,"Allfedo_Partner",password,"Temporary Allfedo HTTP test","ALLFEDO","","",0,1,"Created only for HTTP authorization checks")
+    Set status=##class(Security.Users).Create(username,"Allfedo_Partner",password,"Temporary Allfedo HTTP test","ALLFEDO","","",0,1,"Allfedo HTTP test owner: "_username)
     If $SYSTEM.Status.IsError(status) Throw ##class(%Exception.StatusException).CreateFromStatus(status)
 }
 
@@ -55,9 +55,11 @@ ClassMethod RemoveUsers(credentialsJSON As %String)
     New $NAMESPACE
     Set $NAMESPACE="%SYS"
     While iterator.%GetNext(.kind,.account) {
-        If $Extract(account.username,1,17)="allfedo-web-test-",##class(Security.Users).Exists(account.username) {
-            Set status=##class(Security.Users).Delete(account.username)
-            If $SYSTEM.Status.IsError(status) Throw ##class(%Exception.StatusException).CreateFromStatus(status)
+        If $Extract(account.username,1,17)="allfedo-web-test-",##class(Security.Users).Exists(account.username,.testUser) {
+            If testUser.Comment=("Allfedo HTTP test owner: "_account.username) {
+                Set status=##class(Security.Users).Delete(account.username)
+                If $SYSTEM.Status.IsError(status) Throw ##class(%Exception.StatusException).CreateFromStatus(status)
+            }
         }
     }
 }

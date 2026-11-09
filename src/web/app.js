@@ -290,6 +290,14 @@ async function mutate(action, payload, error, options = {}) {
     flash =
       options.message ||
       "Your change is saved. The current records are shown below.";
+    if (result.agreement_issue)
+      flash += ` Review needed: ${result.agreement_issue}`;
+    if (
+      result.observation_applied === false ||
+      result.observation_applied === 0
+    )
+      flash +=
+        " This count is saved for review. It did not replace the newer current stock observation.";
     if (action === "apply_plan") {
       draftPlan = null;
       draftOfferId = null;
@@ -549,7 +557,7 @@ async function checkUpdates() {
       return;
     if (root.querySelector('.action-form[data-dirty="1"]')) {
       showGlobal(
-        "This case has newer saved details. Read the update before making your change.",
+        "This case has newer saved details. Read them before making a new agreement. Actual physical reports can still be recorded for review; your unsaved fields are kept below.",
         "warning",
       );
       const target = document.getElementById("global-status");
@@ -561,7 +569,9 @@ async function checkUpdates() {
         }),
       );
       if (latest.record?.revision !== watched.revision)
-        for (const form of root.querySelectorAll(".action-form")) {
+        for (const form of root.querySelectorAll(
+          '.action-form:not([data-physical-report="1"])',
+        )) {
           form.dataset.stale = "1";
           form.querySelector('button[type="submit"]').disabled = true;
         }

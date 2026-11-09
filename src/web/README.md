@@ -8,7 +8,8 @@ Sign-in belongs to IRIS’s own password form. The app reads the signed-in perso
 
 - `app.js`: navigation, loading saved records and showing command outcomes.
 - `api.js`: authenticated requests and safe recovery after a lost response.
-- `render.js`: safe text and conditional-child rendering, shared forms and useful handoff drawings.
+- `render.js`: safe text and conditional-child rendering, saved facts and handoff drawings.
+- `forms.js`: shared input, local-time entry, allergen labels and save/retry behavior.
 - `time.js`: site-local dates, clock changes and explicit time conversion.
 - `views/`: kitchen offers, receiving needs, collections, coordinator review and partner locations.
 - `styles.css`: the service’s responsive layout and visual rules.
@@ -27,12 +28,20 @@ Use Node.js 20 or newer for these development checks. The served app needs no No
 npm ci
 npm run test:time
 npx playwright install chromium
-ALLFEDO_BROWSER_ACCOUNTS=/path/to/private-test-accounts.json npm run test:browser
+npm run test:browser
 ```
 
-The private account file needs `accounts.coordinator`, `accounts.kitchen`, `accounts.recipient` and `accounts.collector`. Each contains `username`, `password` and `actor_id`. Optional `base_url` defaults to `http://127.0.0.1:52773/allfedo/`. Never commit this file. The local demo setup supplies invited accounts separately.
+The browser runner creates four temporary native logins in a fresh isolated network. It runs the real kitchen, coordinator, receiving and collector journey, then removes those logins. Saved test records remain for inspection. An intentional custody discrepancy stays open; the runner never erases it to reuse a collector. It uses a manual invitation plan and makes no paid model call.
 
-The browser journey uses real native sessions and saved commands. Each full run needs a fresh isolated four-role fixture because its intentional custody discrepancy remains open; the runner never erases it to reuse a collector. Run it only against an isolated test network: it creates food and receiving records and keeps them for inspection. It uses a manual invitation plan and makes no paid model call. Screenshots go to `/tmp/allfedo-browser-check`; override with `ALLFEDO_BROWSER_OUTPUT`. An existing Chromium binary can be selected with `PLAYWRIGHT_CHROMIUM_EXECUTABLE`.
+Screenshots go to `/tmp/allfedo-browser-check`; override with `ALLFEDO_BROWSER_OUTPUT`. An existing Chromium binary can be selected with `PLAYWRIGHT_CHROMIUM_EXECUTABLE`.
+
+For an already provisioned isolated test network, run the journey directly:
+
+```bash
+ALLFEDO_BROWSER_ACCOUNTS=/path/to/private-test-accounts.json node tests/browser/flow.mjs
+```
+
+That private file needs `accounts.coordinator`, `accounts.kitchen`, `accounts.recipient` and `accounts.collector`. Each contains `username`, `password` and `actor_id`. Optional `base_url` defaults to `http://127.0.0.1:52773/allfedo/`. Use a fresh fixture for each full run. Never commit this file. The local demo setup supplies invited accounts separately.
 
 The time checks run without IRIS. Browser checks require the running, configured application. Neither proves food safety, real transport capacity or a successful physical rescue.
 

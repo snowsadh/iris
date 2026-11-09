@@ -10,6 +10,11 @@ import {
   boxCount,
   labels,
   holdingLabel,
+  partnerName,
+  notice,
+  siteFacts,
+} from "../render.js";
+import {
   field,
   dateTimeField,
   actionForm,
@@ -17,10 +22,7 @@ import {
   checklist,
   allergens,
   holding,
-  partnerName,
-  notice,
-  siteFacts,
-} from "../render.js";
+} from "../forms.js";
 import { localValue, readLocal } from "../time.js";
 
 function needState(record) {

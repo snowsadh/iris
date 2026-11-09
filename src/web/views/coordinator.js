@@ -11,15 +11,13 @@ import {
   facts,
   time,
   boxCount,
-  field,
-  actionForm,
-  confirm,
   partnerName,
   holdingLabel,
   labels,
   checkedAbsent,
   custody,
 } from "../render.js";
+import { field, actionForm, confirm } from "../forms.js";
 import { collectionState } from "./collections.js";
 
 const workText = (item) => {

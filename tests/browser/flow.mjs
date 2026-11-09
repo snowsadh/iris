@@ -160,9 +160,10 @@ try {
   const collector = await login("collector");
   results.push("Four browser contexts use four actual native role sessions.");
   const rendered = await kitchen.evaluate(async () => {
-    const { el, append, checkedAbsent, occurredAt, custody } = await import(
+    const { el, append, checkedAbsent, custody } = await import(
       "/allfedo/render.js"
     );
+    const { occurredAt } = await import("/allfedo/forms.js");
     const node = el(
       "div",
       {},

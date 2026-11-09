@@ -98,6 +98,14 @@ Record project decisions, design tradeoffs, experiments, and lessons useful for 
 - **Browser finding:** A successful lock was not being marked for release. Short-lived tests hid the problem because their processes exited; real workflow workers stayed alive and later requests became busy. Fixed the cleanup and added checks from another process while those workers remain running.
 - **Verified:** Five native suites now pass. Signed-in HTTP checks also cover role scope, native login/logout, repeated requests, and a plan preview that creates no hold. The complete browser journey and consent-based recovery are still under development.
 
+## 2026-11-09 — Let quantities tell the truth across four roles
+
+- **Built and observed:** Separate native sessions completed a real browser journey: 35 boxes invited, 30 accepted, 28 handed over and 27 received. The interface kept the three unresolved boxes visible instead of showing a finished rescue. A lost save response survived a page reload and recovered one saved offer, without a duplicate.
+- **Experience decision:** Put the next person's action before expandable facts and history. Use small handoff drawings to explain collected, accepted and unresolved counts. Mobile screens must keep that meaning without relying on a wide dashboard.
+- **Stock lesson:** A count describes food physically at the kitchen at a particular time. A handoff reported later may already be reflected in that count. Subtracting it again invents a shortage. Returned food also remains quarantined rather than becoming automatically available.
+- **Evidence:** The pure stock projection passed its host checks, including fractional times, ambiguous simultaneous reports and returned food. Native recovery integration remains under development; these checks do not establish a working recovery screen or physical field outcome.
+- **Next:** Verify explicit promise changes, later physical reports and changed trip details through native commands and the actual browser.
+
 ## Entry pattern
 
 Use only fields that help:

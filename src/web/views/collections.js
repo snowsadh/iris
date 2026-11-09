@@ -12,15 +12,12 @@ import {
   holdingLabel,
   labels,
   checkedAbsent,
-  field,
-  actionForm,
-  confirm,
-  dateTimeField,
   custody,
   partnerName,
   siteFacts,
   notice,
 } from "../render.js";
+import { field, actionForm, confirm, dateTimeField } from "../forms.js";
 
 export const collectionState = (record) =>
   ({

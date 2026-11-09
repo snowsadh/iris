@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "test:time": "node --test tests/browser/time.test.mjs",
-    "test:browser": "node tests/browser/flow.mjs"
+    "test:browser": "python3 scripts/browser_test.py"
   },
   "devDependencies": {
     "playwright": "1.65.0"
