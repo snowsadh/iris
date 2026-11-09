@@ -58,3 +58,7 @@ There have been no partner interviews, physical rescue trials or independent hum
 The local test inbox is not live partner messaging. Public hosting, real partner onboarding and operating procedures remain separate work. Only the tested x64 build is claimed; archive recognition for another accepted build is not a claim that its complete application journey ran.
 
 The [sample journey](DEMO.md) explains how to explore the workflow. Scripted browser checks do not replace independent human usability testing or operational validation.
+
+The downloaded image also logs a missing `SYS.ICM.Sharding` method at startup. The image identifier matched its SHA-256 blob in the original archive. A separate container without Allfedo reproduced the error; fresh durable storage and a restart reproduced it too. Those controls passed the unchanged vendor health probe.
+
+Our application container temporarily reported a system alert, then returned to a warning and healthy probe without an application change. The application checks passed in that runtime. The health-state difference remains unexplained; the [upstream report](https://github.com/intersystems-community/ai-hub-eap/issues/48) does not claim that its full cause has been established.

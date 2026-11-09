@@ -47,3 +47,11 @@ Setup stops the existing Allfedo Production before compiling, then restarts it. 
 | Setup reports a source mismatch after switching branches | Run `docker compose up -d --force-recreate iris`, then rerun setup. Docker may still hold the replaced source folders. Recreating the container preserves its named data volume. |
 
 All default ports bind to loopback. IRIS Portal is at <http://127.0.0.1:52773/csp/sys/UtilHome.csp>. Public deployment and real partner email need separate operator configuration and validation.
+
+## Build 109 startup message
+
+The official x64 Community image can log `<METHOD DOES NOT EXIST>Sharding+2^STU *Sharding,SYS.ICM` during startup. It reproduced without Allfedo installed, using the same image identifier as the downloaded archive.
+
+Clean image and durable-volume controls passed their health checks despite that message. Our recreated development container briefly reported `alert`, then IRIS changed it to `warn` and Docker reported healthy without an application change. The controls do not establish the cause of that temporary health difference.
+
+The [upstream report](https://github.com/intersystems-community/ai-hub-eap/issues/48) records the conditions and observations. Keep the vendor health check enabled. Inspect the actual message in `/durable/iris/mgr/messages.log` before treating a new alert as the same case.
