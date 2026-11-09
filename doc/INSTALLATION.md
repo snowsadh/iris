@@ -44,5 +44,6 @@ Setup stops the existing Allfedo Production before compiling, then restarts it. 
 | Email appears missing | Open Mailpit at the configured port. Check the case's notification state; server acceptance is not a recipient reply. |
 | Browser checks cannot start | Install Node.js 20+, run `npm ci` and `npx playwright install chromium`. See the [browser guide](../src/web/README.md) for an existing binary. |
 | Saved data appears different after changing builds | Each accepted build uses a separate data volume. Select the intended build rather than copying incompatible runtime data. |
+| Setup reports a source mismatch after switching branches | Run `docker compose up -d --force-recreate iris`, then rerun setup. Docker may still hold the replaced source folders. Recreating the container preserves its named data volume. |
 
 All default ports bind to loopback. IRIS Portal is at <http://127.0.0.1:52773/csp/sys/UtilHome.csp>. Public deployment and real partner email need separate operator configuration and validation.
