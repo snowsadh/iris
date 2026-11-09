@@ -25,7 +25,7 @@ ClassMethod Read(resource As %String, id As %String = "") As %Status
     Try {
         Set actor=..Principal()
         If resource="session",id="" {
-            Set result={"ok":true,"user":{"id":(""_actor.%Id()),"name":(actor.DisplayName),"role":(actor.Role),"organization_id":(actor.OrganizationId),"network_id":(actor.NetworkId)},"now":(##class(Allfedo.Policy).ISO(##class(Allfedo.Policy).Now()))}
+            Set result={"ok":true,"user":{"id":(""_actor.%Id()),"name":(actor.DisplayName),"role":(actor.Role),"organization_id":(actor.OrganizationId),"network_id":(actor.NetworkId)},"now":(##class(Allfedo.Policy).NowISO())}
             Do result.user.%Set("demo",##class(Allfedo.Demo).IsNetwork(actor.NetworkId),"boolean")
         } ElseIf resource="collectors",id="" {
             Set result=..Collectors(actor)
@@ -221,8 +221,8 @@ ClassMethod Record(resource As %String, id As %String, actor As Allfedo.Record.A
     If '$IsObject(record) Quit ""
     If record.NetworkId'=actor.NetworkId Quit ""
     If resource="offers" {
-        If actor.Role="coordinator" Quit ..Food(record,1)
-        If (actor.Role="kitchen")&&(actor.OrganizationId=record.OrganizationId) Quit ..Food(record)
+        If actor.Role="coordinator" Quit ..Food(record,1,actor)
+        If (actor.Role="kitchen")&&(actor.OrganizationId=record.OrganizationId) Quit ..Food(record,0,actor)
         // Recipient/collector food details are included only inside their addressed collection.
         Quit ""
     }
@@ -241,10 +241,35 @@ ClassMethod Record(resource As %String, id As %String, actor As Allfedo.Record.A
         Set contact=##class(Allfedo.Rescue).Open("Allfedo.Record.Actor",record.CollectorActorId)
         If $IsObject(contact),contact.NetworkId=actor.NetworkId Set collector=contact.DisplayName
     }
-    Quit {"id":(""_record.%Id()),"revision":(record.Revision),"state":(record.State),"quantity":(""_record.Quantity),"unit":(record.Unit),"hold_until":(..Time(record.HoldUntil)),"collector_id":(record.CollectorActorId),"collector_name":(collector),"transport_confirmed":(record.TransportConfirmed),"pickup_at":(..Time(record.PickupAt)),"arrival_by":(..Time(record.ArrivalBy)),"collected_quantity":(""_record.CollectedQuantity),"received_quantity":(""_record.ReceivedQuantity),"unresolved_quantity":(""_record.UnresolvedQuantity),"note":(record.OutcomeNote),"offer":(..Food(offer)),"need":(..Need(need))}
+    Set stockActor=""
+    If (actor.Role="coordinator")||(actor.Role="kitchen") Set stockActor=actor
+    Set result={"id":(""_record.%Id()),"revision":(record.Revision),"state":(record.State),"quantity":(""_record.Quantity),"unit":(record.Unit),"hold_until":(..Time(record.HoldUntil)),"collector_id":(record.CollectorActorId),"collector_name":(collector),"transport_confirmed":(record.TransportConfirmed),"pickup_at":(..Time(record.PickupAt)),"arrival_by":(..Time(record.ArrivalBy)),"collected_quantity":(""_record.CollectedQuantity),"received_quantity":(""_record.ReceivedQuantity),"unresolved_quantity":(""_record.UnresolvedQuantity),"note":(record.OutcomeNote),"offer":(..Food(offer,0,stockActor)),"need":(..Need(need))}
+    Set result.recovery=..Recovery(record,actor)
+    Quit result
 }
 
-ClassMethod Food(record As Allfedo.Record.Offer, evidence As %Boolean = 0) As %DynamicObject
+/// Native recovery owns balances and permissions; this layer removes internal source references.
+ClassMethod Recovery(record As Allfedo.Record.Allocation, actor As Allfedo.Record.Actor) As %DynamicObject
+{
+    Set result=##class(Allfedo.Recovery).View(record,actor)
+    If actor.Role="coordinator" Quit result
+    For field="current_context","original_trip","agreed_trip" {
+        Set context=result.%Get(field)
+        If $IsObject(context) { Do context.%Remove("evidence"),context.%Remove("source_id") }
+    }
+    Set change=result.%Get("change")
+    If $IsObject(change) {
+        If $IsObject(change.context) Do change.context.%Remove("evidence")
+        For party="recipient","kitchen","collector" Do change.responses.%Get(party).%Remove("source_id")
+    }
+    For historyIndex=0:1:result."custody_history".%Size()-1 {
+        Set item=result."custody_history".%Get(historyIndex)
+        Do item.%Remove("source_id")
+    }
+    Quit result
+}
+
+ClassMethod Food(record As Allfedo.Record.Offer, evidence As %Boolean = 0, stockActor As Allfedo.Record.Actor = "") As %DynamicObject
 {
     Set state=##class(Allfedo.Facts).FoodState(record)
     Set available=record.CurrentQuantity-record.HeldQuantity-record.CommittedQuantity-record.CollectedQuantity
@@ -252,6 +277,38 @@ ClassMethod Food(record As Allfedo.Record.Offer, evidence As %Boolean = 0) As %D
     If evidence {
         Set result."source_ids"=[(""_record.SourceId)]
         If (record.OriginalSourceId'="")&&(record.OriginalSourceId'=record.SourceId) Do result."source_ids".%Push(""_record.OriginalSourceId)
+    }
+    Set result."contact_name"=..ContactName(record.NetworkId,record.OrganizationId,record.ContactActorId)
+    If $IsObject(stockActor) {
+        Set result."custody_history"=##class(Allfedo.Recovery).History(record.%Id(),stockActor)
+        If stockActor.Role'="coordinator" {
+            For historyIndex=0:1:result."custody_history".%Size()-1 { Set historyItem=result."custody_history".%Get(historyIndex) Do historyItem.%Remove("source_id") }
+        }
+        Do result.%Set("stock_source_id","","null"),result.%Set("stock_count","","null"),result.%Set("stock_projection","","null")
+        Set result."quarantined_quantity"=""_record.QuarantinedQuantity
+        If record.ObservationSourceId'="" {
+            Set countSource=##class(Allfedo.Rescue).Open("Allfedo.Record.Source",record.ObservationSourceId)
+            Do ..Check($IsObject(countSource)&&(countSource.NetworkId=record.NetworkId)&&(countSource.OrganizationId=record.OrganizationId)&&(countSource.Kind="stock_observation"),500,"INVALID_STOCK_SOURCE","The saved stock count needs review.")
+            Set counted=##class(Allfedo.Rescue).Parse(countSource.BodyJSON),result."stock_source_id"=""_record.ObservationSourceId
+            Set result."stock_count"={"on_hand_quantity":(counted."on_hand_quantity"),"occurred_at":(counted."occurred_at"),"recorded_at":(..Time(countSource.RecordedAt)),"note":(counted.%Get("note"))}
+        }
+        If record.StockProjectionJSON'="" {
+            Set projection=##class(Allfedo.Rescue).Parse(record.StockProjectionJSON)
+            If evidence,projection.%IsDefined("source_ids") {
+                Set seen(record.SourceId)=1
+                If record.OriginalSourceId'="" Set seen(record.OriginalSourceId)=1
+                For sourceIndex=0:1:projection."source_ids".%Size()-1 {
+                    Set sourceId=projection."source_ids".%Get(sourceIndex)
+                    If '$Data(seen(sourceId)) { Do result."source_ids".%Push(sourceId,"string") Set seen(sourceId)=1 }
+                }
+            }
+            If 'evidence {
+                Do projection.%Remove("source_ids")
+                For issueIndex=0:1:projection.issues.%Size()-1 { Set issue=projection.issues.%Get(issueIndex) Do issue.%Remove("source_id") }
+            }
+            Set result."stock_projection"=projection
+            If projection.%GetTypeOf("quarantined_quantity")="null" Do result.%Set("quarantined_quantity","","null")
+        }
     }
     Set result.state=state, result."available_quantity"=""_$Select((available>0)&&(state="open"):available,1:0)
     Set result.packaging=record.Packaging
@@ -271,6 +328,9 @@ ClassMethod Need(record As Allfedo.Record.Need, evidence As %Boolean = 0) As %Dy
     Set state=##class(Allfedo.Facts).NeedState(record)
     Set remaining=record.RequestedQuantity-record.HeldQuantity-record.CommittedQuantity
     Set result={"id":(""_record.%Id()),"revision":(record.Revision),"organization_id":(record.OrganizationId),"requested_quantity":(""_record.RequestedQuantity),"remaining_quantity":(""_$Select(remaining>0:remaining,1:0)),"held_quantity":(""_record.HeldQuantity),"committed_quantity":(""_record.CommittedQuantity),"unit":(record.Unit),"receiving_until":(..Time(record.ReceivingUntil)),"confirmed_until":(..Time(record.ConfirmedUntil)),"excluded_allergens":(##class(Allfedo.Rescue).ParseArray(record.ExcludedAllergensJSON)),"accepted_holding":(##class(Allfedo.Rescue).ParseArray(record.AcceptedHoldingJSON))}
+    Do result.%Set("receiving_from","","null")
+    If record.ReceivingFrom'="" Set result."receiving_from"=..Time(record.ReceivingFrom)
+    Set result."contact_name"=..ContactName(record.NetworkId,record.OrganizationId,record.ContactActorId)
     If evidence Set result."source_ids"=[(record.SourceId)]
     Set result.state=state, result."remaining_quantity"=""_$Select((remaining>0)&&(state="open"):remaining,1:0)
     Set result."shortfall_quantity"=""_$Select(remaining<0:-remaining,1:0)
@@ -284,9 +344,16 @@ ClassMethod Site(networkId As %String, organizationId As %String) As %DynamicObj
 {
     Set record=##class(Allfedo.Facts).SiteFor(networkId,organizationId)
     If '$IsObject(record) Quit ""
-    Set contact=##class(Allfedo.Rescue).Open("Allfedo.Record.Actor",record.ContactActorId), name=""
-    If $IsObject(contact),contact.NetworkId=networkId Set name=contact.DisplayName
+    Set name=..ContactName(networkId,organizationId,record.ContactActorId)
     Quit {"name":(record.Name),"address":(record.Address),"entrance":(record.Entrance),"time_zone":(record.TimeZone),"contact_phone":(record.ContactPhone),"contact_name":(name),"revision":(record.Revision),"confirmed":true}
+}
+
+ClassMethod ContactName(networkId As %String, organizationId As %String, actorId As %String) As %String
+{
+    Set contact=##class(Allfedo.Rescue).Open("Allfedo.Record.Actor",actorId)
+    If '$IsObject(contact) Quit ""
+    If (contact.NetworkId'=networkId)||(contact.OrganizationId'=organizationId) Quit ""
+    Quit contact.DisplayName
 }
 
 ClassMethod Collectors(actor As Allfedo.Record.Actor) As %DynamicObject
@@ -319,6 +386,10 @@ ClassMethod Plan(actor As Allfedo.Record.Actor, offerId As %String) As %DynamicO
     If found {
         Set run=##class(Allfedo.Rescue).Open("Allfedo.Record.AgentRun",query.ID)
         Set saved={"run_id":(""_run.%Id()),"state":(run.Outcome),"started_at":(..Time(run.StartedAt)),"finished_at":(..Time(run.FinishedAt))}
+        Set saved.model=run.Model
+        Do saved.%Set("tool_audit","","null"),saved.%Set("usage","","null")
+        If run.ToolAuditJSON'="" Set saved."tool_audit"=##class(Allfedo.Rescue).ParseArray(run.ToolAuditJSON)
+        If run.UsageJSON'="" Set saved.usage=##class(Allfedo.Rescue).Parse(run.UsageJSON)
         If run.ProposalJSON'="" Set saved.proposal=##class(Allfedo.Rescue).Parse(run.ProposalJSON)
         If run.ResultJSON'="" {
             Set outcome=##class(Allfedo.Rescue).Parse(run.ResultJSON)
@@ -333,9 +404,9 @@ ClassMethod Plan(actor As Allfedo.Record.Actor, offerId As %String) As %DynamicO
 /// Event kinds identify their resource table; numeric IDs alone are not globally unique.
 ClassMethod History(actor As Allfedo.Record.Actor, resource As %String, id As %String) As %DynamicArray
 {
-    Set actions="'invitation_held','accept','decline','assign_collector','confirm_transport','handoff','receive','expire_hold'"
+    Set actions="'invitation_held','accept','decline','assign_collector','confirm_transport','handoff','receive','receive_more','record_disposition','expire_hold','change_requested','change_response','trip_reconfirmed','invitation_withdrawn'"
     If resource="offers" {
-        Set sql="SELECT TOP 100 ID FROM Allfedo_Record.Event WHERE NetworkId=? AND ((ResourceId=? AND Kind IN ('offer_confirmed','stock_observed','food_reconfirmed')) OR (Kind IN ("_actions_") AND ResourceId IN (SELECT ID FROM Allfedo_Record.Allocation WHERE NetworkId=? AND OfferId=?))) ORDER BY RecordedAt DESC, ID DESC"
+        Set sql="SELECT TOP 100 ID FROM Allfedo_Record.Event WHERE NetworkId=? AND ((ResourceId=? AND Kind IN ('offer_confirmed','stock_observed','stock_counted','food_reconfirmed','quarantine_disposed','invitations_resumed')) OR (Kind IN ("_actions_") AND ResourceId IN (SELECT ID FROM Allfedo_Record.Allocation WHERE NetworkId=? AND OfferId=?))) ORDER BY RecordedAt DESC, ID DESC"
         Set query=##class(%SQL.Statement).%ExecDirect(,sql,actor.NetworkId,id,actor.NetworkId,id)
     } Else {
         Set query=##class(%SQL.Statement).%ExecDirect(,"SELECT TOP 100 ID FROM Allfedo_Record.Event WHERE NetworkId=? AND ResourceId=? AND Kind IN ("_actions_") ORDER BY RecordedAt DESC, ID DESC",actor.NetworkId,id)
@@ -347,7 +418,7 @@ ClassMethod History(actor As Allfedo.Record.Actor, resource As %String, id As %S
         If $IsObject(person),person.NetworkId=actor.NetworkId Set name=person.DisplayName
         Set item={"id":(""_event.%Id()),"kind":(event.Kind),"at":(..Time(event.RecordedAt)),"actor_name":(name)}
         Set body=##class(Allfedo.Rescue).Parse(event.BodyJSON)
-        For field="quantity","note","reason" { If body.%IsDefined(field) Do item.%Set(field,body.%Get(field)) }
+        For field="quantity","note","reason","occurred_at","on_hand_quantity","new_quantity","outcome" { If body.%IsDefined(field) Do item.%Set(field,body.%Get(field)) }
         Do rows.%Push(item)
     }
     Do ##class(Allfedo.Rescue).QueryOK(query)
@@ -362,7 +433,7 @@ ClassMethod Notifications(actor As Allfedo.Record.Actor, resource As %String, id
     Set rows=[]
     While query.%Next() {
         Set item=##class(Allfedo.Rescue).Open("Allfedo.Record.Outbox",query.ID)
-        Do rows.%Push({"id":(""_item.%Id()),"allocation_id":(item.AllocationId),"state":(item.State),"attempts":(item.Attempts),"due_at":(..Time(item.DueAt)),"sent_at":(..Time(item.SentAt))})
+        Do rows.%Push({"id":(""_item.%Id()),"allocation_id":(item.AllocationId),"state":(item.State),"purpose":(item.Purpose),"related_change_id":(item.RelatedChangeId),"attempts":(item.Attempts),"due_at":(..Time(item.DueAt)),"sent_at":(..Time(item.SentAt))})
     }
     Do ##class(Allfedo.Rescue).QueryOK(query)
     Quit rows
@@ -372,12 +443,17 @@ ClassMethod Notifications(actor As Allfedo.Record.Actor, resource As %String, id
 ClassMethod Worklist(actor As Allfedo.Record.Actor) As %DynamicObject
 {
     Set now=##class(Allfedo.Policy).Now(), rows=[], truncated=0
-    Set query=##class(%SQL.Statement).%ExecDirect(,"SELECT TOP 101 ID FROM Allfedo_Record.Allocation WHERE NetworkId=? AND ((State='held' AND HoldUntil<=?) OR (State='accepted' AND CollectorActorId IS NULL) OR (State='ready' AND PickupAt<?) OR (State='collected' AND ArrivalBy<?) OR State='receipt_issue') ORDER BY ID",actor.NetworkId,now,now,now)
+    Set query=##class(%SQL.Statement).%ExecDirect(,"SELECT TOP 101 ID FROM Allfedo_Record.Allocation WHERE NetworkId=? AND ((State='held' AND HoldUntil<=?) OR State='accepted' OR (State='ready' AND PickupAt<?) OR (State='collected' AND ArrivalBy<?) OR State IN ('receipt_issue','custody_review','closed_unconfirmed') OR PendingChangeId IN (SELECT ID FROM Allfedo_Record.ChangeRequest WHERE NetworkId=? AND State='awaiting_response')) ORDER BY ID",actor.NetworkId,now,now,now,actor.NetworkId)
     Do ##class(Allfedo.Rescue).QueryOK(query)
     While query.%Next() {
         If rows.%Size()=100 { Set truncated=1 Quit }
         Set record=##class(Allfedo.Rescue).Open("Allfedo.Record.Allocation",query.ID)
         Set kind=$Select(record.State="held":"expire_invitation",record.State="accepted":"assign_collector",record.State="ready":"check_pickup",record.State="collected":"check_arrival",1:"resolve_receipt")
+        If (record.State="accepted")&&(record.CollectorActorId'="") Set kind="confirm_collector"
+        If record.PendingChangeId'="" {
+            Set change=##class(Allfedo.Rescue).Open("Allfedo.Record.ChangeRequest",record.PendingChangeId)
+            If $IsObject(change),change.State="awaiting_response" Set kind="review_change"
+        }
         Do rows.%Push({"kind":(kind),"allocation":(..Record("allocations",""_query.ID,actor))})
     }
     Do ##class(Allfedo.Rescue).QueryOK(query)

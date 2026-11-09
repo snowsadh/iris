@@ -120,6 +120,8 @@ def _read_snapshot(snapshot: dict) -> tuple[datetime, dict, dict[str, dict], set
         need["state"] = _text(need["state"], "need.state", snapshot=True)
         need["unit"] = _text(need["unit"], "need.unit", snapshot=True)
         need["remaining_quantity"] = _quantity(need["remaining_quantity"], need["unit"], "need.remaining_quantity", snapshot=True)
+        if need["receiving_from"] is not None:
+            need["receiving_from"] = _instant(need["receiving_from"], "need.receiving_from")
         need["receiving_until"] = _instant(need["receiving_until"], "need.receiving_until")
         need["confirmed_until"] = _instant(need["confirmed_until"], "need.confirmed_until")
         need["source_ids"] = _strings(need["source_ids"], "need.source_ids", snapshot=True)
@@ -141,7 +143,8 @@ def validate_invitation_plan(snapshot: dict, proposal: dict) -> dict:
     handling_until (a confirmed deadline or null),
     source_ids, holding, present_allergens, assessed_allergens, and state.
     Each need carries current shared remaining quantity, revision, state, unit,
-    receiving_until/confirmed_until, source_ids, excluded_allergens and
+    receiving_from (confirmed opening or null), receiving_until/confirmed_until,
+    source_ids, excluded_allergens and
     accepted_holding. All timestamps include a full date and UTC offset.
 
     Proposal: offer_id, offer_revision, reason, and requests. Each request has
@@ -201,8 +204,13 @@ def validate_invitation_plan(snapshot: dict, proposal: dict) -> dict:
                 raise _Rejected("INVALID_QUANTITY", "An invitation must offer a positive quantity.", need_id)
             if now >= need["confirmed_until"]:
                 raise _Rejected("NEED_CONFIRMATION_EXPIRED", "Ask the receiving partner to refresh today's need.", need_id)
-            if max(now, offer["ready_at"]) >= need["receiving_until"]:
-                raise _Rejected("RECEIVING_WINDOW_ENDED", "The food cannot be collected before this receiving window ends.", need_id)
+            if need["receiving_from"] is None:
+                raise _Rejected("RECEIVING_INFORMATION_MISSING", "Ask the receiving partner when it can start accepting food.", need_id)
+            if need["receiving_from"] >= need["receiving_until"]:
+                raise _Rejected("RECEIVING_WINDOW_INVALID", "Receiving must end after the partner opens.", need_id)
+            earliest_receipt = max(now, offer["ready_at"], need["receiving_from"])
+            if earliest_receipt >= min(need["receiving_until"], offer["handling_until"]):
+                raise _Rejected("RECEIVING_WINDOW_ENDED", "The receiving window and confirmed food-handling deadline leave no time for receipt.", need_id)
             if quantity > need["remaining_quantity"]:
                 raise _Rejected("NEED_CAPACITY_CHANGED", "This request exceeds the need still available across all kitchens.", need_id)
             if offer["present_allergens"] & need["excluded_allergens"]:

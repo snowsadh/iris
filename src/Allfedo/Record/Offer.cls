@@ -21,6 +21,14 @@ Property AssessedAllergensJSON As %String(MAXLEN = 4000) [ Required ];
 Property SourceId As %String [ Required ];
 /// Original signed quantity/description source remains evidence after later food confirmations.
 Property OriginalSourceId As %String;
+Property ObservationConflict As %Boolean [ InitialExpression = 0 ];
+
+Property ObservationSourceId As %String;
+Property ObservationAt As %BigInt;
+Property QuarantinedQuantity As %Integer(MINVAL = 0) [ InitialExpression = 0 ];
+Property StockProjectionJSON As %String(MAXLEN = 100000);
+Property LegacyCollectedQuantity As %Integer(MINVAL = 0);
+Property LegacyRecordedUntil As %BigInt;
 Property Revision As %Integer [ InitialExpression = 1 ];
 Property State As %String [ InitialExpression = "open" ];
 Index ByNetwork On (NetworkId, State);
@@ -96,6 +104,27 @@ Storage Default
 </Value>
 <Value name="23">
 <Value>OriginalSourceId</Value>
+</Value>
+<Value name="24">
+<Value>ObservationConflict</Value>
+</Value>
+<Value name="25">
+<Value>ObservationSourceId</Value>
+</Value>
+<Value name="26">
+<Value>ObservationAt</Value>
+</Value>
+<Value name="27">
+<Value>QuarantinedQuantity</Value>
+</Value>
+<Value name="28">
+<Value>StockProjectionJSON</Value>
+</Value>
+<Value name="29">
+<Value>LegacyCollectedQuantity</Value>
+</Value>
+<Value name="30">
+<Value>LegacyRecordedUntil</Value>
 </Value>
 </Data>
 <DataLocation>^Allfedo.Record.OfferD</DataLocation>

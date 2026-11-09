@@ -3,7 +3,7 @@ Class Allfedo.Record.Allocation Extends %Persistent
 Property NetworkId As %String [ Required ];
 Property OfferId As %String [ Required ];
 Property NeedId As %String [ Required ];
-Property Quantity As %Integer(MINVAL = 1) [ Required ];
+Property Quantity As %Integer(MINVAL = 0) [ Required ];
 Property Unit As %String [ InitialExpression = "meal_box" ];
 Property State As %String [ InitialExpression = "held" ];
 Property HoldUntil As %BigInt [ Required ];
@@ -21,6 +21,27 @@ Property CollectedQuantity As %Integer(MINVAL = 0) [ InitialExpression = 0 ];
 Property ReceivedQuantity As %Integer(MINVAL = 0) [ InitialExpression = 0 ];
 Property UnresolvedQuantity As %Integer(MINVAL = 0) [ InitialExpression = 0 ];
 Property OutcomeNote As %String(MAXLEN = 2000);
+Property HeldQuantity As %Integer(MINVAL = 0);
+Property CancelledUnhandedQuantity As %Integer(MINVAL = 0) [ InitialExpression = 0 ];
+Property LegacyCollectedQuantity As %Integer(MINVAL = 0);
+Property LegacyReceivedQuantity As %Integer(MINVAL = 0);
+Property TripHistoryJSON As %String(MAXLEN = 100000);
+Property OfferedQuantity As %Integer(MINVAL = 0);
+Property OriginalPromiseQuantity As %Integer(MINVAL = 0);
+Property StockCommittedQuantity As %Integer(MINVAL = 0);
+Property AccountedQuantity As %Integer(MINVAL = 0) [ InitialExpression = 0 ];
+Property LostQuantity As %Integer(MINVAL = 0) [ InitialExpression = 0 ];
+Property RejectedQuantity As %Integer(MINVAL = 0) [ InitialExpression = 0 ];
+Property ReturnedQuantity As %Integer(MINVAL = 0) [ InitialExpression = 0 ];
+Property DisposedQuantity As %Integer(MINVAL = 0) [ InitialExpression = 0 ];
+Property SettledHandedQuantity As %Integer(MINVAL = 0) [ InitialExpression = 0 ];
+Property ConsentContextKey As %String(MAXLEN = 64);
+Property ClosedUnknownQuantity As %Integer(MINVAL = 0) [ InitialExpression = 0 ];
+Property OriginalTripJSON As %String(MAXLEN = 100000);
+Property TripContextJSON As %String(MAXLEN = 100000);
+Property TripContextKey As %String(MAXLEN = 64);
+Property PendingChangeId As %String;
+Property CustodyIssue As %String(MAXLEN = 2000);
 Index ByOffer On OfferId;
 Index ByNeed On NeedId;
 Index ByCollector On (CollectorActorId, PickupAt, ArrivalBy);
@@ -94,6 +115,69 @@ Storage Default
 </Value>
 <Value name="22">
 <Value>OutcomeNote</Value>
+</Value>
+<Value name="23">
+<Value>HeldQuantity</Value>
+</Value>
+<Value name="24">
+<Value>CancelledUnhandedQuantity</Value>
+</Value>
+<Value name="25">
+<Value>LegacyCollectedQuantity</Value>
+</Value>
+<Value name="26">
+<Value>LegacyReceivedQuantity</Value>
+</Value>
+<Value name="27">
+<Value>TripHistoryJSON</Value>
+</Value>
+<Value name="28">
+<Value>OfferedQuantity</Value>
+</Value>
+<Value name="29">
+<Value>OriginalPromiseQuantity</Value>
+</Value>
+<Value name="30">
+<Value>StockCommittedQuantity</Value>
+</Value>
+<Value name="31">
+<Value>AccountedQuantity</Value>
+</Value>
+<Value name="32">
+<Value>LostQuantity</Value>
+</Value>
+<Value name="33">
+<Value>RejectedQuantity</Value>
+</Value>
+<Value name="34">
+<Value>ReturnedQuantity</Value>
+</Value>
+<Value name="35">
+<Value>DisposedQuantity</Value>
+</Value>
+<Value name="36">
+<Value>SettledHandedQuantity</Value>
+</Value>
+<Value name="37">
+<Value>ConsentContextKey</Value>
+</Value>
+<Value name="38">
+<Value>ClosedUnknownQuantity</Value>
+</Value>
+<Value name="39">
+<Value>OriginalTripJSON</Value>
+</Value>
+<Value name="40">
+<Value>TripContextJSON</Value>
+</Value>
+<Value name="41">
+<Value>TripContextKey</Value>
+</Value>
+<Value name="42">
+<Value>PendingChangeId</Value>
+</Value>
+<Value name="43">
+<Value>CustodyIssue</Value>
 </Value>
 </Data>
 <DataLocation>^Allfedo.Record.AllocationD</DataLocation>

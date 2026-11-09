@@ -11,7 +11,7 @@ ClassMethod Configure() As %Status
     If $$$ISERR(status) Quit status
     Set status=..Application("/allfedo","Allfedo.Web.App","Allfedo.Web.Login.cls")
     If $$$ISERR(status) Quit status
-    For table="Actor","Offer","Need","Allocation","Site","AgentRun","Event","Outbox" {
+    For table="Actor","Offer","Need","Allocation","Site","AgentRun","Event","Outbox","Custody","ChangeRequest" {
         Set query=##class(%SQL.Statement).%ExecDirect(,"GRANT SELECT ON Allfedo_Record."_table_" TO Allfedo_Partner")
         Do ##class(Allfedo.Rescue).QueryOK(query)
     }

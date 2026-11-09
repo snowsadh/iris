@@ -8,6 +8,7 @@ Property HeldQuantity As %Integer(MINVAL = 0) [ InitialExpression = 0 ];
 Property CommittedQuantity As %Integer(MINVAL = 0) [ InitialExpression = 0 ];
 Property Unit As %String [ InitialExpression = "meal_box" ];
 Property ReceivingUntil As %BigInt [ Required ];
+Property ReceivingFrom As %BigInt;
 Property ConfirmedUntil As %BigInt [ Required ];
 Property ExcludedAllergensJSON As %String(MAXLEN = 4000) [ Required ];
 Property AcceptedHoldingJSON As %String(MAXLEN = 4000) [ Required ];
@@ -63,6 +64,9 @@ Storage Default
 </Value>
 <Value name="15">
 <Value>State</Value>
+</Value>
+<Value name="16">
+<Value>ReceivingFrom</Value>
 </Value>
 </Data>
 <DataLocation>^Allfedo.Record.NeedD</DataLocation>

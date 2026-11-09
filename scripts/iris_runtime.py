@@ -242,33 +242,47 @@ Halt
 def test_application() -> None:
     """Run real native command and two-process capacity checks without model calls."""
     _verify_selected_runtime()
-    for filename in ("AllfedoScenario.cls", "AllfedoWebScenario.cls"):
+    for filename in ("AllfedoScenario.cls", "AllfedoWebScenario.cls", "AllfedoAgentScenario.cls", "AllfedoMailScenario.cls"):
         subprocess.run(_compose_command("cp", str(PROJECT / "tests" / "native" / filename),
                                         f"iris:/tmp/{filename}"), cwd=PROJECT, check=True)
     commands = '''Set sc=$SYSTEM.OBJ.Load("/tmp/AllfedoScenario.cls","ck")
 If 'sc Do $SYSTEM.Status.DisplayError(sc)
 If sc Set sc=$SYSTEM.OBJ.Load("/tmp/AllfedoWebScenario.cls","ck")
 If 'sc Do $SYSTEM.Status.DisplayError(sc)
+If sc Set sc=$SYSTEM.OBJ.Load("/tmp/AllfedoAgentScenario.cls","ck")
+If 'sc Do $SYSTEM.Status.DisplayError(sc)
+If sc Set sc=$SYSTEM.OBJ.Load("/tmp/AllfedoMailScenario.cls","ck")
+If 'sc Do $SYSTEM.Status.DisplayError(sc)
 If sc { Set result=##class(AllfedoScenario).TestCommands() Write !,"ALLFEDO_COMMANDS=",result.%ToJSON(),! }
 If sc { Set result=##class(AllfedoScenario).TestRaces() Write !,"ALLFEDO_RACES=",result.%ToJSON(),! }
 If sc { Set result=##class(AllfedoScenario).TestBusyRecovery() Write !,"ALLFEDO_BUSY=",result.%ToJSON(),! }
 If sc { Set result=##class(AllfedoScenario).TestFacts() Write !,"ALLFEDO_FACTS=",result.%ToJSON(),! }
 If sc { Set result=##class(AllfedoScenario).TestProductionLocks() Write !,"ALLFEDO_WORKERS=",result.%ToJSON(),! }
+If sc { Set result=##class(AllfedoScenario).TestRecovery() Write !,"ALLFEDO_RECOVERY=",result.%ToJSON(),! }
+If sc { Set result=##class(AllfedoAgentScenario).TestUnavailable() Write !,"ALLFEDO_AGENT_FAILURE=",result.%ToJSON(),! }
+If sc { Set result=##class(AllfedoMailScenario).Run() Write !,"ALLFEDO_MAIL=",result.%ToJSON(),! }
+If sc { Set result=##class(AllfedoMailScenario).TestScheduled() Write !,"ALLFEDO_SMTP=",result.%ToJSON(),! }
 If sc Write !,"ALLFEDO_HTTP=",##class(AllfedoWebScenario).Run(),!
 Halt
 '''
-    result = subprocess.run(_compose_command("exec", "-T", "iris", "iris", "session", "IRIS", "-U", "ALLFEDO"),
-                            cwd=PROJECT, input=commands, text=True, capture_output=True, timeout=90)
+    # The direct agent-failure check cannot contact a provider. Existing Production workers keep their own environment.
+    result = subprocess.run(_compose_command("exec", "-T", "--env", "OPENAI_API_KEY=", "iris", "iris", "session", "IRIS", "-U", "ALLFEDO"),
+                            cwd=PROJECT, input=commands, text=True, capture_output=True, timeout=180)
+    names = ("COMMANDS", "RACES", "BUSY", "FACTS", "WORKERS", "RECOVERY", "AGENT_FAILURE", "MAIL", "SMTP", "HTTP")
     checks = {}
     for line in result.stdout.splitlines():
-        for name in ("COMMANDS", "RACES", "BUSY", "FACTS", "WORKERS", "HTTP"):
+        for name in names:
             prefix = f"ALLFEDO_{name}="
             if line.startswith(prefix):
-                checks[name] = json.loads(line.removeprefix(prefix))
-    if result.returncode != 0 or _terminal_error(result.stdout) or any(checks.get(name, {}).get("ok") is not True for name in ("COMMANDS", "RACES", "BUSY", "FACTS", "WORKERS", "HTTP")):
+                try:
+                    value = json.loads(line.removeprefix(prefix))
+                    checks[name] = value if isinstance(value, dict) else {"ok": False}
+                except json.JSONDecodeError:
+                    checks[name] = {"ok": False, "error": "The native check returned no readable result."}
+    if result.returncode != 0 or _terminal_error(result.stdout) or any(checks.get(name, {}).get("ok") is not True for name in names):
         print(result.stdout, end="")
         raise RuntimeError("Native command or shared-capacity checks did not pass.")
-    print("Native commands, shared capacity, facts, retries, worker cleanup, and signed-in HTTP checks passed. No model call was made.")
+    print("Native commands, shared capacity, facts, recovery, provider failure, mail rules, retries, worker cleanup, and signed-in HTTP checks passed. No model call was made.")
 
 
 def main() -> None:

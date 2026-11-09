@@ -45,7 +45,12 @@ ClassMethod SetFoodFields(offer As Allfedo.Record.Offer, data As %DynamicObject)
 
 ClassMethod FoodState(offer As Allfedo.Record.Offer) As %String
 {
-    If offer.State="review_required" Quit "review_required"
+    If '$ListFind($ListBuild("open","needs_details","expired"),offer.State) Quit $Select(offer.State="":"needs_details",1:offer.State)
+    Quit ..FoodFactsState(offer)
+}
+
+ClassMethod FoodFactsState(offer As Allfedo.Record.Offer) As %String
+{
     If (offer.Holding="")||(offer.HandlingUntil="") Quit "needs_details"
     Set site=..SiteFor(offer.NetworkId,offer.OrganizationId)
     If '$IsObject(site) Quit "needs_details"
@@ -56,7 +61,8 @@ ClassMethod FoodState(offer As Allfedo.Record.Offer) As %String
 
 ClassMethod NeedState(need As Allfedo.Record.Need) As %String
 {
-    If need.State="review_required" Quit "review_required"
+    If '$ListFind($ListBuild("","open","needs_details","expired"),need.State) Quit need.State
+    If need.ReceivingFrom="" Quit "needs_details"
     Set site=..SiteFor(need.NetworkId,need.OrganizationId)
     If '$IsObject(site) Quit "needs_details"
     Set now=##class(Allfedo.Policy).Now()
@@ -75,7 +81,7 @@ ClassMethod ConfirmFood(actor As Allfedo.Record.Actor, data As %DynamicObject) A
         Set offer.OriginalSourceId=offer.SourceId
     }
     Set changed=..SetFoodFields(offer,data), source=##class(Allfedo.Rescue).Source(actor,"offer_confirmation",data)
-    Set offer.SourceId=source.%Id(), offer.Revision=offer.Revision+1
+    Set offer.SourceId=source.%Id(), offer.ContactActorId=actor.%Id(), offer.Revision=offer.Revision+1
     If changed&&((offer.HeldQuantity+offer.CommittedQuantity)>0) Set offer.State="review_required"
     Set offer.State=..FoodState(offer)
     Do ##class(Allfedo.Rescue).Save(offer), ##class(Allfedo.Rescue).Event(actor,"food_reconfirmed",offer.%Id(),data)
@@ -87,12 +93,12 @@ ClassMethod UpdateNeed(actor As Allfedo.Record.Actor, data As %DynamicObject) As
     Set need=##class(Allfedo.Rescue).Open("Allfedo.Record.Need",data."need_id")
     Do ##class(Allfedo.Rescue).Require($IsObject(need)&&(actor.Role="recipient")&&(need.NetworkId=actor.NetworkId)&&(need.OrganizationId=actor.OrganizationId),"Only this receiving partner can confirm its current need.")
     Do ##class(Allfedo.Rescue).Require(need.Revision=data.revision,"The receiving need changed. Review its current version first.")
-    Set receiving=##class(Allfedo.Policy).Instant(data."receiving_until"), confirmed=##class(Allfedo.Policy).Instant(data."confirmed_until")
-    Do ##class(Allfedo.Rescue).Require((confirmed<=receiving)&&(data.unit=need.Unit),"Confirmation cannot outlast receiving, and an existing need cannot change units.")
+    Set receivingFrom=##class(Allfedo.Policy).Instant(data."receiving_from"), receiving=##class(Allfedo.Policy).Instant(data."receiving_until"), confirmed=##class(Allfedo.Policy).Instant(data."confirmed_until")
+    Do ##class(Allfedo.Rescue).Require((receivingFrom<receiving)&&(confirmed<=receiving)&&(data.unit=need.Unit),"Confirmation cannot outlast receiving, and an existing need cannot change units.")
     Set excluded=data."excluded_allergens".%ToJSON(), holding=data."accepted_holding".%ToJSON(), promises=need.HeldQuantity+need.CommittedQuantity
-    Set changed=(need.ReceivingUntil'=receiving)||(need.ConfirmedUntil'=confirmed)||(need.ExcludedAllergensJSON'=excluded)||(need.AcceptedHoldingJSON'=holding)
+    Set changed=(need.ReceivingFrom'=receivingFrom)||(need.ReceivingUntil'=receiving)||(need.ConfirmedUntil'=confirmed)||(need.ExcludedAllergensJSON'=excluded)||(need.AcceptedHoldingJSON'=holding)
     Set source=##class(Allfedo.Rescue).Source(actor,"need_confirmation",data)
-    Set need.RequestedQuantity=+data.quantity, need.ReceivingUntil=receiving, need.ConfirmedUntil=confirmed, need.ExcludedAllergensJSON=excluded, need.AcceptedHoldingJSON=holding, need.SourceId=source.%Id(), need.Revision=need.Revision+1
+    Set need.RequestedQuantity=+data.quantity, need.ReceivingFrom=receivingFrom, need.ReceivingUntil=receiving, need.ConfirmedUntil=confirmed, need.ExcludedAllergensJSON=excluded, need.AcceptedHoldingJSON=holding, need.SourceId=source.%Id(), need.ContactActorId=actor.%Id(), need.Revision=need.Revision+1
     Set shortfall=$Select(promises>need.RequestedQuantity:promises-need.RequestedQuantity,1:0)
     Set need.State=$Select((shortfall>0)||(changed&&(promises>0)):"review_required",1:"open")
     Set need.State=..NeedState(need)

@@ -46,9 +46,10 @@ Method ReadCollectionFacts() As %String
     Set query=##class(%SQL.Statement).%ExecDirect(,"SELECT ID FROM Allfedo_Record.Allocation WHERE OfferId=? ORDER BY ID",snapshot.offer.id)
     Do ##class(Allfedo.Rescue).QueryOK(query)
     While query.%Next() {
-        Set item=##class(Allfedo.Record.Allocation).%OpenId(query.ID)
-        Do records.%Push({"allocation_id":(""_item.%Id()),"need_id":(item.NeedId),"quantity":(""_item.Quantity),"state":(item.State),"transport_confirmed":(item.TransportConfirmed),"pickup_at":(item.PickupAt),"collector_actor_id":(item.CollectorActorId)})
+        Set item=##class(Allfedo.Rescue).Open("Allfedo.Record.Allocation",query.ID)
+        Do records.%Push({"allocation_id":(""_item.%Id()),"need_id":(item.NeedId),"quantity":(""_item.Quantity),"state":(item.State),"transport_confirmed":(item.TransportConfirmed),"pickup_at":(item.PickupAt),"collector_actor_id":(item.CollectorActorId),"recovery":(##class(Allfedo.Recovery).View(item))})
     }
+    Do ##class(Allfedo.Rescue).QueryOK(query)
     Do ..Log("ReadCollectionFacts",{})
     Quit records.%ToJSON()
 }
@@ -64,7 +65,7 @@ Method ReadCaseEvidence(sourceId As %String) As %String
         For j=0:1:need."source_ids".%Size()-1 { If need."source_ids".%Get(j)=sourceId Set permitted=1 }
     }
     Do ##class(Allfedo.Rescue).Require(permitted,"This evidence is outside the authorized case.")
-    Set source=##class(Allfedo.Record.Source).%OpenId(sourceId)
+    Set source=##class(Allfedo.Rescue).Open("Allfedo.Record.Source",sourceId)
     Do ##class(Allfedo.Rescue).Require($IsObject(source)&&(source.NetworkId=snapshot."network_id"),"This source is not available to the case.")
     Do ..Log("ReadCaseEvidence",{"source_id":(sourceId)})
     Quit {"source_id":(sourceId),"actor_id":(source.ActorId),"sender_name":(source.SenderName),"organization_id":(source.OrganizationId),"confirmation_method":(source.ConfirmationMethod),"event_at":(##class(Allfedo.Policy).ISO(source.EventAt)),"recorded_at":(##class(Allfedo.Policy).ISO(source.RecordedAt)),"facts":(##class(Allfedo.Rescue).Parse(source.BodyJSON))}.%ToJSON()

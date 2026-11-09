@@ -29,6 +29,7 @@ class InvitationPlanTests(unittest.TestCase):
                     "id": "riverside-dinner", "organization_id": "riverside",
                     "network_id": "local-network", "revision": 2, "state": "open",
                     "remaining_quantity": "35", "unit": "meal_box",
+                    "receiving_from": "2026-11-09T17:00:00Z",
                     "receiving_until": "2026-11-09T19:00:00Z",
                     "confirmed_until": "2026-11-09T18:30:00Z",
                     "source_ids": ["riverside-confirmation-2"],
@@ -38,6 +39,7 @@ class InvitationPlanTests(unittest.TestCase):
                     "id": "bridge-dinner", "organization_id": "bridge-centre",
                     "network_id": "local-network", "revision": 4, "state": "open",
                     "remaining_quantity": "45", "unit": "meal_box",
+                    "receiving_from": "2026-11-09T17:00:00Z",
                     "receiving_until": "2026-11-09T18:45:00Z",
                     "confirmed_until": "2026-11-09T18:30:00Z",
                     "source_ids": ["bridge-confirmation-4"],
@@ -129,6 +131,21 @@ class InvitationPlanTests(unittest.TestCase):
         self.snapshot["offer"]["handling_until"] = "2026-11-09T18:01:00Z"
         self.snapshot["offer"]["ready_at"] = "2026-11-09T18:01:00Z"
         self.assert_rejected("FOOD_HANDLING_WINDOW_ENDED")
+
+    def test_early_pickup_can_serve_a_partner_that_opens_later(self):
+        self.snapshot["needs"][0]["receiving_from"] = "2026-11-09T18:30:00Z"
+        self.assertTrue(self.validate()["ok"])
+        self.snapshot["needs"][0].update(receiving_from="2026-11-09T19:00:00Z", receiving_until="2026-11-09T20:00:00Z")
+        self.assert_rejected("RECEIVING_WINDOW_ENDED", need_id="riverside-dinner")
+
+    def test_receiving_opening_must_be_known_and_precede_closing(self):
+        self.snapshot["needs"][0]["receiving_from"] = None
+        self.assert_rejected("RECEIVING_INFORMATION_MISSING", need_id="riverside-dinner")
+        self.proposal["requests"] = [self.proposal["requests"][1]]
+        self.assertTrue(self.validate()["ok"])
+        self.proposal["requests"] = [dict(need_id="riverside-dinner", need_revision=2, quantity="35", unit="meal_box", evidence_ids=["kitchen-confirmation-3", "riverside-confirmation-2"])]
+        self.snapshot["needs"][0]["receiving_from"] = self.snapshot["needs"][0]["receiving_until"]
+        self.assert_rejected("RECEIVING_WINDOW_INVALID", need_id="riverside-dinner")
 
     def test_changed_receiving_constraints_require_review_before_new_invitations(self):
         self.snapshot["needs"][0]["state"] = "review_required"

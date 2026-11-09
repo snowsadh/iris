@@ -3,6 +3,9 @@ Class Allfedo.Record.Outbox Extends %Persistent
 Property NetworkId As %String [ Required ];
 Property AllocationId As %String [ Required ];
 Property AllocationRevision As %Integer [ Required ];
+Property Purpose As %String [ InitialExpression = "invitation" ];
+Property RelatedChangeId As %String;
+Property RecipientActorId As %String;
 Property Recipient As %String(MAXLEN = 320) [ Required ];
 Property Subject As %String(MAXLEN = 300) [ Required ];
 Property Body As %String(MAXLEN = 10000) [ Required ];
@@ -55,6 +58,15 @@ Storage Default
 </Value>
 <Value name="13">
 <Value>SentAt</Value>
+</Value>
+<Value name="14">
+<Value>Purpose</Value>
+</Value>
+<Value name="15">
+<Value>RelatedChangeId</Value>
+</Value>
+<Value name="16">
+<Value>RecipientActorId</Value>
 </Value>
 </Data>
 <DataLocation>^Allfedo.Record.OutboxD</DataLocation>
