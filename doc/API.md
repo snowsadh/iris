@@ -44,6 +44,8 @@ For example, first GET the allocation. Copy `record.revision` and `record.recove
 
 Quantities are whole meal-box counts encoded as strings. IDs are strings; revisions are integers; confirmations are JSON booleans. Times need a full date and UTC offset, such as `2026-11-09T18:05:12.123456Z`. Preserve available fractional seconds. `occurred_at` describes the physical event, which can precede the time its report arrives.
 
+For a report made just now, the Allfedo browser reads the current server time from `/session` before constructing the command. This avoids using an estimated device clock to order a handoff against a recent agreement. The command still sends a full timestamp; keep it unchanged when retrying.
+
 Give each new intention a new request ID. Keep its serialized request body until the result is known. If the connection fails or the outcome is uncertain, POST that exact body again with the same ID. This returns the saved outcome or safely retries an unsaved attempt. Refresh the record afterward: later corrections may have changed it.
 
 `accept` confirms a receiving promise; `receive` records actual accepted food. Check `physical_report_saved` and `agreement_issue` on physical reports. An AI suggestion, sent email, or HTTP success alone does not prove collection or receipt.

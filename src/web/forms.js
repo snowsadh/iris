@@ -305,9 +305,10 @@ export function occurrenceFields(prefix, zone) {
   );
 }
 export function occurredAt(data, zone, now, original = null) {
-  const value = data.get("occurred")
-    ? readLocal(data, "occurred", zone, original)
-    : now();
+  // The transport resolves "just now" from a fresh server reading before saving
+  // the retry reference. An estimated browser clock can predate a new agreement.
+  if (!data.get("occurred")) return null;
+  const value = readLocal(data, "occurred", zone, original);
   if (new Date(value) > new Date(now()))
     throw new Error(
       "A physical report cannot happen in the future. Use the actual time, or record it after it happens.",
