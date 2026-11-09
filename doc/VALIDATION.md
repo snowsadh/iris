@@ -1,6 +1,6 @@
 # What has been checked
 
-Checked 9 November 2026 on AI Hub Community **2027.1.0AI.109.0**, with Embedded Python **3.12.3**. Source implementation: [`f6459b6`](https://github.com/snowsadh/iris/commit/f6459b66d5fadecc3311ec643bdf727977211d85). Later documentation and submission assets do not change that implementation.
+Checked 9 November 2026 on AI Hub Community **2027.1.0AI.109.0**, with Embedded Python **3.12.3**. Latest checked implementation: [`4ee4f90`](https://github.com/snowsadh/iris/commit/4ee4f90). The fresh-install check below records its source separately.
 
 ## Repeat the release checks
 
@@ -18,7 +18,7 @@ npm run test:browser
 
 | Check | Observed result |
 |---|---|
-| Host Python | 45 passed: proposal rules, stock projection and installer contracts. |
+| Host Python | 46 passed: proposal rules, stock projection and installer contracts. |
 | Browser time handling | Four passed, including another device time zone, clock changes and exact source-time preservation. |
 | Native integration | All 17 runner groups passed on the real image. |
 | Signed-in web requests | Core 65, onward delivery 32 and rejected-food follow-up 29 checks passed. These are included in the native runner. |
@@ -39,6 +39,8 @@ Setup, all 17 native groups, six demo-account sign-ins, dependency installation,
 
 An earlier isolated SMTP-outage check stopped the test inbox. Delivery remained pending after attempt one, then succeeded on attempt two after the inbox restarted. This establishes bounded retry behavior for that case, not guaranteed external email delivery.
 
+A later branch switch replaced bind-mounted source folders. Setup previously accepted the empty mounted tree while compiled native code remained available. The installer now compares mounted runtime-file hashes with the checkout before stopping workers or compiling. The actual stale mount was refused. Recreating the container preserved its data volume; all 17 native groups and the full browser journey then passed with the updated wordmark. Browser checks explicitly decode the authenticated brand image.
+
 ## Actual agent evidence
 
 Two successful paid native planning decisions ran during development. The later saved run, number 20, used **gpt-4.1-mini** through the IRIS Production and native AI Hub. Run numbers include test fixtures and failures; they are not a count of paid calls.
@@ -49,10 +51,10 @@ Planning created no holds. A separate coordinator command then saved the reviewe
 
 Ordinary native and browser checks make no paid model call. Browser plans are manual. Provider-failure checks verify a visible failure, safe request replay, unchanged reservations and the checked manual fallback.
 
-## Limits and participant checks
+## Verification limits
 
 There have been no partner interviews, physical rescue trials or independent human usability sessions. Scripted physical reports describe fictional events. Screenshots are actual app screens with fictional data. The app does not certify food condition, infer travel time or prove how many people were fed.
 
 The local test inbox is not live partner messaging. Public hosting, real partner onboarding and operating procedures remain separate work. Only the tested x64 build is claimed; archive recognition for another accepted build is not a claim that its complete application journey ran.
 
-The [walkthrough](WALKTHROUGH.md) includes participant checks and recording directions. Contest listing approval, contest association, published articles and a demo video are separate deliverables; passing software checks does not establish their completion.
+The [sample journey](DEMO.md) explains how to explore the workflow. Scripted browser checks do not replace independent human usability testing or operational validation.

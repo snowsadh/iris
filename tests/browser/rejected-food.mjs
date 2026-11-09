@@ -13,7 +13,7 @@ export async function rejectedFoodJourney(ui) {
   assert.ok(need, "Riverside needs four actually available receiving slots.");
   await ui.enterFood(
     kitchen,
-    `Chilled vegetable meals · rejected-food check ${ui.token}`,
+    "Chilled vegetable meals",
   );
   await kitchen.locator("#food-quantity").fill("4");
   await kitchen

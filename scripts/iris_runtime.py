@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -206,6 +207,17 @@ def _verify_selected_runtime() -> str:
 def configure_application() -> None:
     """Create the isolated application namespace and compile the mounted source."""
     _verify_selected_runtime()
+    # A branch switch can replace a bind-mounted directory while Docker keeps its old inode.
+    sources = sorted(path for path in (PROJECT / "src").rglob("*")
+                     if path.is_file() and path.suffix in {".cls", ".py", ".js", ".css", ".html", ".svg", ".ttf"})
+    expected = [hashlib.sha256(path.read_bytes()).hexdigest() for path in sources]
+    names = ["/opt/allfedo/" + path.relative_to(PROJECT / "src").as_posix() for path in sources]
+    mounted = subprocess.run(_compose_command("exec", "-T", "iris", "sha256sum", *names),
+                             cwd=PROJECT, capture_output=True, text=True, timeout=30)
+    if mounted.returncode or [line.split()[0] for line in mounted.stdout.splitlines()] != expected:
+        raise RuntimeError("Docker's mounted source does not match this checkout. Run "
+                           "`docker compose up -d --force-recreate iris`, then rerun setup. "
+                           "Existing data volumes are preserved.")
     # Each terminal input line must be complete; compiled ObjectScript supports multiline blocks.
     prepare = '''Set sc=1, wasRunning=0
 If ##class(%SYS.Namespace).Exists("ALLFEDO") { ZN "ALLFEDO" Set wasRunning=##class(Ens.Director).IsProductionRunning(.production) If wasRunning { If production'="Allfedo.Production" { Set sc=0 Write !,"A different Production owns ALLFEDO; stop it explicitly before setup.",! } Else { Set sc=##class(Ens.Director).StopProduction() } } }

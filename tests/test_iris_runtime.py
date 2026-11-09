@@ -83,6 +83,15 @@ class RuntimeSetupTests(unittest.TestCase):
                     runtime.write_runtime_override(override, "food-rescue/iris-aihub:2027.1.0AI.109.0", "2027.1.0AI.109.0")
                 self.assertEqual(override.read_text(), original)
 
+    def test_stale_source_mount_cannot_stop_workers_or_report_successful_setup(self):
+        for code, output in ((1, ""), (0, "old-source-hash  /opt/allfedo/web/index.html\n")):
+            with self.subTest(exit_code=code), \
+                 patch.object(runtime, "_verify_selected_runtime"), \
+                 patch.object(runtime.subprocess, "run", return_value=subprocess.CompletedProcess([], code, output, "")) as run:
+                with self.assertRaisesRegex(RuntimeError, "force-recreate"):
+                    runtime.configure_application()
+                run.assert_called_once()
+
     def test_failed_atomic_replacement_keeps_previous_selection_and_cleans_temporary_file(self):
         override = self.root / "compose.override.yaml"
         runtime.write_runtime_override(override, "food-rescue/iris-aihub:2026.3.0AI.154.0", "2026.3.0AI.154.0")
