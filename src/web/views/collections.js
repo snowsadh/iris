@@ -1,3 +1,5 @@
+import { recoveryActions } from "./recovery.js";
+import { physicalActions, physicalHistory } from "./physical.js";
 import { readLocal, earliest } from "../time.js";
 import {
   append,
@@ -28,11 +30,23 @@ export const collectionState = (record) =>
         : "Food reserved · collector needed",
       "warning",
     ],
-    ready: ["Pickup agreed", ""],
+    ready: [
+      record.recovery?.trip_needs_confirmation
+        ? "Instructions changed · collector must confirm"
+        : "Pickup agreed",
+      record.recovery?.trip_needs_confirmation ? "warning" : "",
+    ],
     collected: ["Collected · receiving count needed", "warning"],
     received: ["Receipt confirmed", "success"],
     receipt_issue: ["Receiving count needs a check", "error"],
     released: ["Invitation released", ""],
+    cancelled: ["Commitment cancelled · no food handed over", ""],
+    partial_closed: ["Revised commitment accounted for", "success"],
+    closed_unconfirmed: [
+      "Expected arrival closed · physical outcome unknown",
+      "warning",
+    ],
+    custody_review: ["Physical reports need a check", "error"],
   })[record.state] || ["Review needed", "warning"];
 const title = (record) =>
   `${boxCount(record.quantity)} for ${partnerName(record.need, "receiving partner")}`;
@@ -253,7 +267,11 @@ function agreementActions(ctx, record) {
     role === "collector" &&
     record.collector_id === ctx.user.id
   ) {
-    if (foodUnavailable || loadUnconfirmed) {
+    if (
+      foodUnavailable ||
+      loadUnconfirmed ||
+      record.recovery?.recipient_needs_confirmation
+    ) {
       append(
         forms,
         notice(
@@ -261,195 +279,79 @@ function agreementActions(ctx, record) {
           "warning",
         ),
       );
-      return forms;
-    }
-    append(
-      forms,
-      actionForm({
-        title: "Confirm your collection",
-        expiresAt: earliest(
-          record.offer.collect_by,
-          record.offer.handling_until,
-          record.need.confirmed_until,
-          record.need.receiving_until,
-        ),
-        now: ctx.now,
-        description:
-          "Check the physical load and handling with the kitchen. These times must fit both partners’ windows.",
-        submit: "Confirm my trip",
-        fields: [
-          dateTimeField("Pickup date and time", {
-            id: "trip-pickup",
-            name: "pickup",
-            zone: record.offer.site?.time_zone,
-            required: true,
-          }),
-          dateTimeField("Arrive at the receiving partner by", {
-            id: "trip-arrival",
-            name: "arrival",
-            zone: record.need.site?.time_zone,
-            required: true,
-          }),
-          field("Meal boxes I can carry", {
-            id: "trip-capacity",
-            name: "capacity",
-            type: "number",
-            min: record.quantity,
-            max: 999999,
-            required: true,
-            help: "Check how many of the packed meal boxes your vehicle can actually carry.",
-          }),
-          el(
-            "label",
-            { className: "check confirmation" },
-            el("input", { type: "checkbox", name: "handling", required: true }),
-            "I have checked the load and can maintain the recorded food handling requirements.",
-          ),
-        ],
-        onSubmit: (data, error) =>
-          mutation(
-            "confirm_transport",
-            data && {
-              ...identifier,
-              pickup_at: readLocal(
-                data,
-                "pickup",
-                record.offer.site?.time_zone,
-              ),
-              arrival_by: readLocal(
-                data,
-                "arrival",
-                record.need.site?.time_zone,
-              ),
-              capacity: data.get("capacity"),
-              handling_accepted: data.has("handling"),
-            },
-            error,
-            "Your trip is agreed. The kitchen will record the actual handoff.",
-          ),
-      }),
-    );
-  }
-  if (record.state === "ready" && role === "kitchen") {
-    if (record.offer.state !== "open")
-      append(
-        forms,
-        notice(
-          "The kitchen’s food facts are paused for review. Ask the coordinator before handing over this food.",
-          "warning",
-        ),
-      );
-    else if (new Date(ctx.now()) < new Date(record.offer.ready_at))
-      append(
-        forms,
-        notice(
-          `The kitchen’s confirmed collection window opens ${time(record.offer.ready_at, record.offer.site?.time_zone)}. Read current records when the collector is here.`,
-          "warning",
-        ),
-      );
-    else
+    } else
       append(
         forms,
         actionForm({
-          title: "Record the physical handoff",
+          title: "Confirm your collection",
           expiresAt: earliest(
             record.offer.collect_by,
             record.offer.handling_until,
+            record.need.confirmed_until,
+            record.need.receiving_until,
           ),
           now: ctx.now,
-          description: `Count the boxes with ${record.collector_name || "the named collector"}. Record only what you actually give them.`,
-          submit: "Record actual handoff",
+          description:
+            "Check the physical load and handling with the kitchen. These times must fit both partners’ windows.",
+          submit: "Confirm my trip",
           fields: [
-            field("Meal boxes handed to the collector", {
-              id: "handoff-count",
-              name: "quantity",
-              type: "number",
-              min: 1,
-              max: record.quantity,
+            dateTimeField("Pickup date and time", {
+              id: "trip-pickup",
+              name: "pickup",
+              zone: record.offer.site?.time_zone,
               required: true,
             }),
-            field("Handoff note", {
-              id: "handoff-note",
-              name: "note",
-              type: "textarea",
-              maxLength: 2000,
-              help: "Explain a short count, rejected packaging or anything the receiver needs to know.",
+            dateTimeField("Arrive at the receiving partner by", {
+              id: "trip-arrival",
+              name: "arrival",
+              zone: record.need.site?.time_zone,
+              required: true,
             }),
-            confirm(
-              "The named collector is here and this quantity has physically changed hands.",
+            field("Meal boxes I can carry", {
+              id: "trip-capacity",
+              name: "capacity",
+              type: "number",
+              min: record.quantity,
+              max: 999999,
+              required: true,
+              help: "Check how many of the packed meal boxes your vehicle can actually carry.",
+            }),
+            el(
+              "label",
+              { className: "check confirmation" },
+              el("input", {
+                type: "checkbox",
+                name: "handling",
+                required: true,
+              }),
+              "I have checked the load and can maintain the recorded food handling requirements.",
             ),
           ],
-          onSubmit: (data, error) => {
-            if (
-              data &&
-              Number(data.get("quantity")) < Number(record.quantity) &&
-              !data.get("note").trim()
-            )
-              throw new Error(
-                "Explain the short handoff before recording it. Say what you know and leave unknown outcomes unknown.",
-              );
-            return mutation(
-              "handoff",
+          onSubmit: (data, error) =>
+            mutation(
+              "confirm_transport",
               data && {
                 ...identifier,
-                quantity: data.get("quantity"),
-                note: data.get("note"),
+                context_key: record.recovery.current_context.context_key,
+                pickup_at: readLocal(
+                  data,
+                  "pickup",
+                  record.offer.site?.time_zone,
+                ),
+                arrival_by: readLocal(
+                  data,
+                  "arrival",
+                  record.need.site?.time_zone,
+                ),
+                capacity: data.get("capacity"),
+                handling_accepted: data.has("handling"),
               },
               error,
-              "The kitchen handoff is recorded. The receiving contact still needs to count what arrives.",
-            );
-          },
+              "Your trip is agreed. The kitchen will record the actual handoff.",
+            ),
         }),
       );
   }
-  if (record.state === "collected" && role === "recipient")
-    append(
-      forms,
-      actionForm({
-        title: "Count what arrived",
-        description:
-          "Record the number your team accepts. Explain any short or rejected amount so the coordinator can follow up.",
-        submit: "Record receiving count",
-        fields: [
-          field("Meal boxes accepted", {
-            id: "receipt-count",
-            name: "quantity",
-            type: "number",
-            min: 0,
-            max: record.collected_quantity,
-            required: true,
-          }),
-          field("What happened to any difference?", {
-            id: "receipt-note",
-            name: "note",
-            type: "textarea",
-            maxLength: 2000,
-            help: "Required if fewer than the reserved boxes are accepted. Say what you know; leave unknown outcomes unknown.",
-          }),
-          confirm("I have counted the food at our receiving point."),
-        ],
-        onSubmit: (data, error) => {
-          if (
-            data &&
-            Number(data.get("quantity")) < Number(record.quantity) &&
-            !data.get("note").trim()
-          )
-            throw new Error(
-              "Explain the short or rejected quantity before recording this count.",
-            );
-          return mutation(
-            "receive",
-            data && {
-              ...identifier,
-              quantity: data.get("quantity"),
-              note: data.get("note"),
-            },
-            error,
-            "Receiving count recorded. Any missing quantity remains open for follow-up.",
-          );
-        },
-      }),
-    );
   if (record.state === "held" && role === "coordinator" && expired)
     append(
       forms,
@@ -468,6 +370,7 @@ function agreementActions(ctx, record) {
           ),
       }),
     );
+  append(forms, physicalActions(ctx, record), recoveryActions(ctx, record));
   if (!forms.childNodes.length)
     append(
       forms,
@@ -492,7 +395,13 @@ export function collectionDetail(ctx) {
   const zone = record.offer.site?.time_zone;
   const receivingZone = record.need.site?.time_zone;
   const receiving = partnerName(record.need, "Receiving partner");
-  const isReceipt = ["received", "receipt_issue"].includes(record.state);
+  const isReceipt = [
+    "received",
+    "receipt_issue",
+    "custody_review",
+    "partial_closed",
+    "closed_unconfirmed",
+  ].includes(record.state);
   const summary = el(
     "article",
     { className: "surface detail-main collection-summary" },
@@ -521,10 +430,7 @@ export function collectionDetail(ctx) {
         ["Reserved for this partner", boxCount(record.quantity)],
         ["Kitchen recorded handing over", boxCount(record.collected_quantity)],
         ["Collector", record.collector_name],
-        [
-          "Receiving contact",
-          record.need.site?.contact_name || "Receiving team",
-        ],
+        ["Receiving contact", record.need.contact_name || "Receiving team"],
       ]),
       el(
         "p",
@@ -570,7 +476,8 @@ export function collectionDetail(ctx) {
             : "No confirmed-absent labels",
         ],
         ["Collect before", time(record.offer.collect_by, zone)],
-        ["Receive before", time(record.need.receiving_until, receivingZone)],
+        ["Receiving opens", time(record.need.receiving_from, receivingZone)],
+        ["Receiving closes", time(record.need.receiving_until, receivingZone)],
         ...(record.state === "held"
           ? [["Reply before", time(record.hold_until, receivingZone)]]
           : [["Collector", record.collector_name || "Not assigned"]]),
@@ -599,13 +506,50 @@ export function collectionDetail(ctx) {
         el("p", {}, record.note),
       ),
     );
-  if (ctx.user.role === "collector" && record.state === "ready")
+  if (record.recovery.agreed_trip) {
+    const trip = record.recovery.agreed_trip;
     append(
       summary,
-      siteFacts(record.offer, "Current pickup contact and place"),
-      siteFacts(record.need, "Current receiving contact and place"),
+      el(
+        "details",
+        {
+          className: "section-gap",
+          ...(ctx.user.role === "collector" ? { open: true } : {}),
+        },
+        el("summary", {}, "Collector’s agreed ticket"),
+        el(
+          "div",
+          { className: "panel" },
+          record.recovery.trip_needs_confirmation &&
+            notice(
+              "Current instructions changed. Do not use this old ticket for a new handoff. The assigned collector must confirm the current instructions.",
+              "warning",
+            ),
+          facts([
+            ["Collector", trip.collector_name],
+            ["Agreed at", time(trip.agreed_at, trip.details.pickup.time_zone)],
+            [
+              "Agreed pickup",
+              time(trip.pickup_at, trip.details.pickup.time_zone),
+            ],
+            [
+              "Agreed arrival by",
+              time(trip.arrival_by, trip.details.destination.time_zone),
+            ],
+            ["Agreed quantity", boxCount(trip.details.quantity)],
+            ["Packing", trip.details.food.packaging],
+          ]),
+          siteFacts({ site: trip.details.pickup }, "Agreed pickup place"),
+          siteFacts(
+            { site: trip.details.destination },
+            "Agreed receiving place",
+          ),
+        ),
+      ),
     );
+  }
 
+  append(summary, physicalHistory(ctx, record));
   const actions = agreementActions(ctx, record);
   actions.classList.add("collection-actions");
   const secondary = el(
@@ -621,7 +565,8 @@ export function collectionDetail(ctx) {
         ["Collector", record.collector_name || "Not assigned"],
         ["Food ready", time(record.offer.ready_at, zone)],
         ["Collect before", time(record.offer.collect_by, zone)],
-        ["Receive before", time(record.need.receiving_until, receivingZone)],
+        ["Receiving opens", time(record.need.receiving_from, receivingZone)],
+        ["Receiving closes", time(record.need.receiving_until, receivingZone)],
         ["Holding method", holdingLabel(record.offer.holding)],
         ["Holding confirmed until", time(record.offer.handling_until, zone)],
         [

@@ -1319,3 +1319,20 @@ h2[tabindex="-1"]:focus {
 .text-button {
   min-height: 40px;
 }
+
+/* The list order follows saved tool calls; it is not an animated progress sequence. */
+.audit-list {
+  padding-left: 1.2em;
+  margin: 20px 0;
+}
+.audit-list li + li {
+  margin-top: 14px;
+}
+
+.custody-stop.resolved {
+  color: var(--ink);
+}
+.custody > .facts {
+  padding: 0 16px;
+  margin: 15px 0;
+}

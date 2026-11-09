@@ -1,3 +1,4 @@
+import { physicalHistory } from "./physical.js";
 import { collectionState } from "./collections.js";
 import {
   append,
@@ -24,6 +25,8 @@ import {
   confirm,
   allergenFields,
   readAllergens,
+  occurrenceFields,
+  occurredAt,
 } from "../forms.js";
 import { readLocal, localValue } from "../time.js";
 
@@ -334,7 +337,7 @@ function collectionProgress(record, kitchen) {
   let next;
   let action = "Open this collection";
   if (record.state === "held")
-    next = `${record.need.site?.contact_name || "The receiving contact"} needs to reply before ${time(record.hold_until, record.need.site?.time_zone)}. A pickup has not been agreed.`;
+    next = `${record.need.contact_name || "The receiving contact"} needs to reply before ${time(record.hold_until, record.need.site?.time_zone)}. A pickup has not been agreed.`;
   else if (record.state === "accepted")
     next = record.collector_name
       ? `${record.collector_name} has been assigned and still needs to confirm the trip.`
@@ -348,9 +351,19 @@ function collectionProgress(record, kitchen) {
     )
       action = "Open the kitchen handoff";
   } else if (record.state === "collected")
-    next = `${record.collector_name} collected ${boxCount(record.collected_quantity)}. ${record.need.site?.contact_name || "The receiving contact"} still needs to record what arrived.`;
+    next = `${record.collector_name} collected ${boxCount(record.collected_quantity)}. ${record.need.contact_name || "The receiving contact"} still needs to record what arrived.`;
   else if (record.state === "receipt_issue")
     next = `The receiving team accepted ${boxCount(record.received_quantity)}. The coordinator needs to check the ${record.unresolved_quantity} unresolved boxes.`;
+  else if (record.state === "closed_unconfirmed")
+    next = `The expected arrival was closed, but ${boxCount(record.recovery.physical_unknown_quantity)} still have no confirmed physical outcome. The responsible contact must report what happened.`;
+  else if (record.state === "custody_review")
+    next =
+      "Physical reports do not yet match. The coordinator and the reporting contacts need to review the actual counts and times.";
+  else if (record.state === "partial_closed")
+    next = `The receiving team accepted ${boxCount(record.received_quantity)}. The smaller commitment was agreed; known outcomes remain in the collection history.`;
+  else if (record.state === "cancelled")
+    next =
+      "The partners agreed to cancel the unhanded commitment. No food movement was inferred.";
   else if (record.state === "received")
     next = `${boxCount(record.received_quantity)} were accepted by the receiving team.`;
   else next = "This invitation no longer holds food.";
@@ -378,10 +391,15 @@ export function offerDetail(ctx) {
   const kitchen = ctx.user.role === "kitchen";
   const collections = ctx.relatedAllocations || [];
   const active = collections.filter(
-    (item) => !["received", "released"].includes(item.state),
+    (item) =>
+      !["received", "released", "partial_closed", "cancelled"].includes(
+        item.state,
+      ),
   );
   const finished = collections.filter((item) =>
-    ["received", "released"].includes(item.state),
+    ["received", "released", "partial_closed", "cancelled"].includes(
+      item.state,
+    ),
   );
   const main = el(
     "article",
@@ -564,13 +582,49 @@ export function offerDetail(ctx) {
       "div",
       { className: "panel" },
       facts([
+        ["Food details confirmed by", record.contact_name || "Kitchen team"],
         ["Originally declared", boxCount(record.declared_quantity)],
-        ["Current lot count", boxCount(record.current_quantity)],
+        [
+          "Usable at kitchen from recorded counts and handoffs",
+          record.stock_projection?.review_required
+            ? "Uncertain · physical history needs review"
+            : record.stock_projection
+              ? boxCount(record.stock_projection.usable_on_hand_quantity)
+              : "No confirmed physical balance yet",
+        ],
+        [
+          "Latest reported on-hand count",
+          record.observed_quantity === null
+            ? "No later physical count recorded"
+            : boxCount(record.observed_quantity),
+        ],
+        [
+          "Returned food kept out of use",
+          record.quarantined_quantity === null
+            ? "Unconfirmed · review needed"
+            : boxCount(record.quarantined_quantity),
+        ],
         ["Held for replies", boxCount(record.held_quantity)],
         ["Reserved, not collected", boxCount(record.committed_quantity)],
         ["Already handed over", boxCount(record.collected_quantity)],
         ["Currently unassigned", boxCount(record.available_quantity)],
       ]),
+      record.stock_count &&
+        facts([
+          [
+            "Physically counted at",
+            time(record.stock_count.occurred_at, record.site?.time_zone),
+          ],
+          [
+            "Count added to the record",
+            time(record.stock_count.recorded_at, record.site?.time_zone),
+          ],
+        ]),
+      record.stock_count?.note &&
+        el("p", { className: "help" }, record.stock_count.note),
+      record.stock_projection?.issues?.map((issue) =>
+        notice(issue.message, "warning"),
+      ),
       Number(record.shortfall_quantity) > 0 &&
         notice(
           `${boxCount(record.shortfall_quantity)} are missing against current promises.`,
@@ -606,7 +660,33 @@ export function offerDetail(ctx) {
       siteFacts(record, "Current pickup place"),
     ),
   );
+  append(main, physicalHistory(ctx, record));
   const actions = el("aside", {}, foodFacts);
+  if (!kitchen && record.state === "review_required")
+    append(
+      actions,
+      actionForm({
+        title: "Check whether invitations can resume",
+        description:
+          "Current stock, food limits and required partner confirmations must all be confirmed. Unresolved physical counts keep invitations paused.",
+        submit: "Check and resume invitations",
+        fields: [
+          confirm(
+            "I have reviewed the actual count, changed promises and partner confirmations.",
+          ),
+        ],
+        onSubmit: (_, error) =>
+          ctx.mutate(
+            "resume_offer",
+            { offer_id: record.id, revision: record.revision },
+            error,
+            {
+              message:
+                "Invitations resumed after the current food and commitment checks passed. Existing physical reports stay recorded.",
+            },
+          ),
+      }),
+    );
   if (kitchen) {
     append(
       actions,
@@ -623,20 +703,22 @@ export function offerDetail(ctx) {
         { className: "section-gap" },
         el("summary", {}, "Report a changed physical count"),
         actionForm({
-          title: "Record a changed count",
+          title: "Count what is physically at your kitchen",
+          physicalReport: true,
           description:
-            "Count the original lot total, including boxes already handed over. This pauses new invitations and handoffs for coordinator review.",
+            "Count all boxes from this lot still at your site, including quarantined returns. Do not include food already with the collector or receiving partner. Returned food stays unavailable; the app keeps it separate.",
           submit: "Report the changed count",
           fields: [
-            field("Current total meal boxes for this lot", {
+            field("All meal boxes physically here now", {
               id: "stock-quantity",
               name: "quantity",
               type: "number",
-              min: record.collected_quantity,
+              min: 0,
               max: 999999,
               required: true,
             }),
-            field("When and how was it counted?", {
+            occurrenceFields("stock", record.site?.time_zone),
+            field("How did you count it, including any returns?", {
               id: "stock-note",
               name: "note",
               type: "textarea",
@@ -646,11 +728,12 @@ export function offerDetail(ctx) {
           ],
           onSubmit: (data, error) =>
             ctx.mutate(
-              "observe_stock",
+              "count_stock",
               data && {
                 offer_id: record.id,
                 revision: record.revision,
-                quantity: data.get("quantity"),
+                on_hand_quantity: data.get("quantity"),
+                occurred_at: occurredAt(data, record.site?.time_zone, ctx.now),
                 note: data.get("note"),
               },
               error,
@@ -663,6 +746,59 @@ export function offerDetail(ctx) {
       ),
     );
   }
+  if (kitchen && Number(record.quarantined_quantity) > 0)
+    append(
+      actions,
+      el(
+        "details",
+        { className: "section-gap" },
+        el("summary", {}, "Dispose of returned food kept in quarantine"),
+        actionForm({
+          title: "Record actual disposal at this kitchen",
+          description:
+            "Returned food stays out of use. Record the quantity only after your team physically disposes of it. This does not reduce food accepted by a receiving partner.",
+          submit: "Record quarantine disposal",
+          physicalReport: true,
+          fields: [
+            field("Quarantined meal boxes physically disposed of", {
+              id: "quarantine-quantity",
+              name: "quantity",
+              type: "number",
+              min: 1,
+              max: 999999,
+              required: true,
+            }),
+            occurrenceFields("quarantine", record.site?.time_zone),
+            field("How and where was the food disposed of?", {
+              id: "quarantine-note",
+              name: "note",
+              type: "textarea",
+              required: true,
+              maxLength: 2000,
+            }),
+            confirm(
+              "Our team physically disposed of this quarantined food. It has not gone back into available stock.",
+            ),
+          ],
+          onSubmit: (data, error) =>
+            ctx.mutate(
+              "dispose_quarantined",
+              data && {
+                offer_id: record.id,
+                revision: record.revision,
+                quantity: data.get("quantity"),
+                occurred_at: occurredAt(data, record.site?.time_zone, ctx.now),
+                note: data.get("note"),
+              },
+              error,
+              {
+                message:
+                  "Quarantine disposal recorded. Returned food was not made available again.",
+              },
+            ),
+        }),
+      ),
+    );
   return el(
     "div",
     {},

@@ -169,89 +169,11 @@ export function brand() {
   );
 }
 export function custody(record) {
-  if (record.recovery) return recoveryCustody(record);
-  const received = ["received", "receipt_issue"].includes(record.state);
-  const gap = Number(record.unresolved_quantity) > 0;
-  const missingAtHandoff = Math.max(
-    0,
-    Number(record.quantity) - Number(record.collected_quantity),
-  );
-  const notAccepted = Math.max(
-    0,
-    Number(record.collected_quantity) - Number(record.received_quantity),
-  );
-  const differences = [];
-  if (missingAtHandoff)
-    differences.push(
-      `${missingAtHandoff} ${missingAtHandoff === 1 ? "was" : "were"} not handed over.`,
+  if (!record.recovery)
+    return notice(
+      "Physical report details are not available. Read the saved collection again before judging any difference.",
+      "warning",
     );
-  if (notAccepted)
-    differences.push(
-      `${notAccepted} ${notAccepted === 1 ? "was" : "were"} handed over but not accepted.`,
-    );
-  const caption = received
-    ? `${boxCount(record.quantity)} ${Number(record.quantity) === 1 ? "was" : "were"} reserved. ${gap ? differences.join(" ") + " The coordinator still needs to confirm these outcomes." : "The receiving count accounts for the full commitment."}`
-    : "The kitchen handoff is recorded. The receiving contact still needs to count what actually arrived.";
-  return el(
-    "figure",
-    { className: "custody" },
-    el(
-      "div",
-      { className: "custody-flow" },
-      el(
-        "div",
-        { className: "custody-stop" },
-        drawing("handoff"),
-        el("strong", {}, `${record.collected_quantity} collected`),
-        el("span", {}, "Kitchen handoff recorded"),
-      ),
-      el(
-        "div",
-        { className: "custody-stop" },
-        drawing(received ? "handoff" : "unknown"),
-        el(
-          "strong",
-          {},
-          received ? `${record.received_quantity} accepted` : "Receipt needed",
-        ),
-        el(
-          "span",
-          {},
-          received ? "Receiving count recorded" : "No receiving count recorded",
-        ),
-      ),
-      el(
-        "div",
-        { className: "custody-stop" },
-        drawing(gap ? "unknown" : "handoff"),
-        el(
-          "strong",
-          {},
-          received
-            ? gap
-              ? `${record.unresolved_quantity} unresolved`
-              : "Count matches"
-            : gap
-              ? `${record.unresolved_quantity} not handed over`
-              : "Full handoff recorded",
-        ),
-        el(
-          "span",
-          {},
-          received
-            ? gap
-              ? "Actual outcome still needs follow-up"
-              : "Full commitment accounted for"
-            : gap
-              ? "Any short handoff stays open"
-              : "Receiving count still needed",
-        ),
-      ),
-    ),
-    el("figcaption", {}, caption),
-  );
-}
-function recoveryCustody(record) {
   const balance = record.recovery;
   const stages = [
     [
@@ -266,8 +188,18 @@ function recoveryCustody(record) {
     ],
     [
       Number(balance.physical_unknown_quantity) ? "unknown" : "handoff",
-      `${balance.physical_unknown_quantity} whereabouts unconfirmed`,
-      "Changing a promise does not explain missing food",
+      Number(balance.physical_unknown_quantity) > 0
+        ? `${boxCount(balance.physical_unknown_quantity)} not yet accounted for`
+        : Number(balance.unmatched_report_quantity) > 0
+          ? "Reported counts do not match"
+          : "Handed-over food accounted for",
+      Number(balance.physical_unknown_quantity) > 0
+        ? "A changed promise does not explain missing food"
+        : Number(balance.unmatched_report_quantity) > 0
+          ? "A physical report still needs a matching handoff"
+          : "Accepted food and other known outcomes stay separate",
+      Number(balance.physical_unknown_quantity) === 0 &&
+        Number(balance.unmatched_report_quantity) === 0,
     ],
   ];
   const known = [
@@ -291,10 +223,10 @@ function recoveryCustody(record) {
     el(
       "div",
       { className: "custody-flow" },
-      stages.map(([image, count, caption]) =>
+      stages.map(([image, count, caption, resolved]) =>
         el(
           "div",
-          { className: "custody-stop" },
+          { className: `custody-stop${resolved ? " resolved" : ""}` },
           drawing(image),
           el("strong", {}, count),
           el("span", {}, caption),

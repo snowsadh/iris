@@ -63,3 +63,34 @@ test("unknowns stay empty and dates cannot silently roll into another day", () =
   );
   assert.match(formatTime("2026-11-09T18:00:00Z", "UTC"), /2026/);
 });
+
+test("an unchanged physical time preserves the original source precision", () => {
+  const data = new FormData();
+  const original = "2026-11-09T18:15:38.123456Z";
+  data.set("occurred", "2026-11-09T18:15");
+  assert.equal(
+    readLocal(data, "occurred", "Europe/London", original),
+    original,
+  );
+  data.set("occurred", "2026-11-09T18:16");
+  assert.equal(
+    readLocal(data, "occurred", "Europe/London", original),
+    "2026-11-09T18:16:00.000Z",
+  );
+  const repeated = "2026-11-01T06:30:45.987654Z";
+  data.set("occurred", "2026-11-01T01:30");
+  assert.throws(
+    () => readLocal(data, "occurred", "America/New_York", repeated),
+    /occurs twice/,
+  );
+  data.set("occurred_instant", "2026-11-01T06:30:00.000Z");
+  assert.equal(
+    readLocal(data, "occurred", "America/New_York", repeated),
+    repeated,
+  );
+  data.set("occurred_instant", "2026-11-01T05:30:00.000Z");
+  assert.equal(
+    readLocal(data, "occurred", "America/New_York", repeated),
+    "2026-11-01T05:30:00.000Z",
+  );
+});

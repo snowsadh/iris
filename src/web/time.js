@@ -70,18 +70,26 @@ export function possibleInstants(local, zone) {
     .sort();
 }
 
-export function readLocal(data, name, zone) {
+export function readLocal(data, name, zone, original = null) {
   const options = possibleInstants(data.get(name), zone);
   if (!options.length)
     throw new Error(
       "That local time does not exist because the clocks change. Choose another local time.",
     );
-  if (options.length === 1) return options[0];
-  const selected = data.get(`${name}_instant`);
+  const selected =
+    options.length === 1 ? options[0] : data.get(`${name}_instant`);
   if (!options.includes(selected))
     throw new Error(
       "That local time occurs twice because the clocks change. Choose which occurrence you mean.",
     );
+  // A quantity-only correction must retain the original source's sub-minute precision.
+  if (
+    original &&
+    localValue(original, zone) === data.get(name) &&
+    Math.floor(new Date(original).getTime() / 60000) * 60000 ===
+      new Date(selected).getTime()
+  )
+    return original;
   return selected;
 }
 

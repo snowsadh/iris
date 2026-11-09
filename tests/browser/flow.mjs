@@ -163,7 +163,25 @@ try {
     const { el, append, checkedAbsent, custody } = await import(
       "/allfedo/render.js"
     );
-    const { occurredAt } = await import("/allfedo/forms.js");
+    const { occurredAt, actionForm } = await import("/allfedo/forms.js");
+    const submitted = [];
+    const agreement = actionForm({
+      title: "Guarded agreement",
+      submit: "Save",
+      fields: [],
+      onSubmit: () => submitted.push("agreement"),
+    });
+    const physical = actionForm({
+      title: "Physical fact",
+      submit: "Record",
+      fields: [],
+      physicalReport: true,
+      onSubmit: () => submitted.push("physical"),
+    });
+    for (const form of [agreement, physical]) {
+      form.dataset.stale = "1";
+      form.dispatchEvent(new Event("submit", { cancelable: true }));
+    }
     const node = el(
       "div",
       {},
@@ -208,6 +226,7 @@ try {
     return {
       text: node.textContent,
       images: node.querySelectorAll("img").length,
+      submitted,
       defaultTime,
       lateTime,
       futureRejected,
@@ -220,11 +239,16 @@ try {
   });
   assert.equal(rendered.text, "0<img src=x onerror=alert(1)> source text");
   assert.equal(rendered.images, 0);
+  assert.deepEqual(
+    rendered.submitted,
+    ["physical"],
+    "Changed instructions block a new agreement but cannot erase an actual physical report.",
+  );
   assert.equal(rendered.defaultTime, "2026-11-09T12:00:00.000Z");
   assert.equal(rendered.lateTime, "2026-11-09T11:45:00.000Z");
   assert.equal(rendered.futureRejected, true);
   assert.deepEqual(rendered.absent, ["peanut"]);
-  assert.match(rendered.custody, /2 whereabouts unconfirmed/);
+  assert.match(rendered.custody, /2 meal boxes not yet accounted for/);
   assert.match(rendered.custody, /no longer count as expected arrivals/);
   assert.doesNotMatch(rendered.custody, /Count matches/);
   results.push(
@@ -296,6 +320,7 @@ try {
       existing ? `/needs/${existing.id}/edit` : "/needs/new",
     );
     await recipient.locator("#need-quantity").fill("50");
+    await recipient.locator("#need-receiving-from").fill(clock(server.now, -2));
     await recipient.locator("#need-receiving").fill(clock(server.now, 120));
     await recipient.locator("#need-confirmed").fill(clock(server.now, 110));
     await recipient
@@ -429,10 +454,14 @@ try {
       .getByRole("status")
       .filter({ hasText: "The kitchen handoff is recorded." })
       .waitFor();
+    const handed = (await get(kitchen, `allocations/${allocation.id}`)).record;
+    assert.equal(handed.collected_quantity, "28");
     assert.equal(
-      (await get(kitchen, `allocations/${allocation.id}`)).record
-        .collected_quantity,
-      "28",
+      handed.recovery.custody_history.find(
+        (report) => report.active && report.kind === "handoff",
+      )?.agreement_issue,
+      "",
+      "The normal in-window handoff must not hide an agreement or timing warning.",
     );
   }
   await open(recipient, `/allocations/${allocation.id}`);
@@ -456,6 +485,17 @@ try {
     .record;
   assert.equal(received.state, "receipt_issue");
   assert.equal(received.received_quantity, "27");
+  for (const kind of ["handoff", "receipt"]) {
+    const report = received.recovery.custody_history.find(
+      (item) => item.active && item.kind === kind,
+    );
+    assert.ok(report, `The actual ${kind} report must be present.`);
+    assert.equal(
+      report.agreement_issue,
+      "",
+      `The normal in-window ${kind} must not hide an agreement or timing warning.`,
+    );
+  }
   assert.equal(received.unresolved_quantity, "3");
   const finalNeed = (await get(recipient, `needs/${needId}`)).record;
   assert.equal(finalNeed.committed_quantity, "30");
@@ -471,6 +511,233 @@ try {
   await shot(recipient, "receiving-mobile");
   results.push(
     "Actual collector confirmation, 28-box handoff and 27-box receipt leave three unresolved and receiving capacity unchanged by receipt.",
+  );
+
+  step = "Recording the known rejected box and actual kitchen stock";
+  await recipient
+    .getByText("Record a known outcome for food not accepted", { exact: true })
+    .click();
+  await recipient.locator("#outcome-kind").selectOption("rejected_at_site");
+  await recipient.locator("#outcome-quantity").fill("1");
+  await recipient
+    .locator("#outcome-note")
+    .fill(
+      "One damaged box is rejected and kept separately at this receiving site. It has not been returned or disposed of.",
+    );
+  await recipient
+    .getByLabel(
+      "I can confirm this physical outcome. This is not a guess about missing food.",
+    )
+    .check();
+  await recipient
+    .getByRole("button", { name: "Record known physical outcome", exact: true })
+    .click();
+  await recipient
+    .getByRole("status")
+    .filter({ hasText: "Physical outcome recorded." })
+    .waitFor();
+  await open(kitchen, `/offers/${offerId}`);
+  await kitchen
+    .getByText("Report a changed physical count", { exact: true })
+    .click();
+  await kitchen.locator("#stock-quantity").fill("12");
+  await kitchen
+    .locator("#stock-note")
+    .fill(
+      "Counted all 12 boxes still at the kitchen. The two boxes absent from the loading point remained in the cold room. No returned food is included.",
+    );
+  await kitchen
+    .getByRole("button", { name: "Report the changed count", exact: true })
+    .click();
+  await kitchen
+    .getByRole("status")
+    .filter({ hasText: "Changed count recorded." })
+    .waitFor();
+  const counted = (await get(kitchen, `offers/${offerId}`)).record;
+  assert.equal(counted.stock_count.on_hand_quantity, "12");
+  assert.equal(counted.stock_projection.usable_on_hand_quantity, "12");
+  step = "Proposing an explicit smaller commitment";
+  await open(coordinator, `/allocations/${allocation.id}`);
+  await coordinator
+    .getByText("Change the commitment or confirm new instructions", {
+      exact: true,
+    })
+    .click();
+  await coordinator.locator("#change-new-quantity").fill("27");
+  await coordinator
+    .locator("#change-reason")
+    .fill(
+      "27 boxes accepted; one rejected and kept at the receiving site. The kitchen counted the two unhanded boxes still there. Ask both partners to agree a 27-box commitment.",
+    );
+  await coordinator
+    .getByRole("button", { name: "Request partner confirmation", exact: true })
+    .click();
+  await coordinator
+    .getByRole("status")
+    .filter({ hasText: "Change proposed." })
+    .waitFor();
+  let changing = (await get(coordinator, `allocations/${allocation.id}`))
+    .record;
+  assert.equal(
+    changing.quantity,
+    "30",
+    "A proposal cannot cancel the old promise.",
+  );
+  assert.equal(changing.recovery.change.state, "awaiting_response");
+  await open(recipient, `/allocations/${allocation.id}`);
+  await recipient.locator("#change-answer").selectOption("agree");
+  await recipient.locator("#change-need-total").fill("50");
+  await recipient
+    .locator("#change-response-note")
+    .fill(
+      "Our full need is still 50 meal boxes for this window, including the 27 accepted. We agree this collection now supplies 27.",
+    );
+  await recipient
+    .getByRole("button", { name: "Save my response", exact: true })
+    .click();
+  await recipient
+    .getByRole("status")
+    .filter({ hasText: "Your response is recorded." })
+    .waitFor();
+  changing = (await get(coordinator, `allocations/${allocation.id}`)).record;
+  assert.equal(
+    changing.quantity,
+    "30",
+    "Kitchen confirmation remains required for unhanded stock release.",
+  );
+  await open(kitchen, `/allocations/${allocation.id}`);
+  await kitchen.locator("#change-answer").selectOption("agree");
+  await kitchen
+    .locator("#change-response-note")
+    .fill(
+      "Our latest saved physical count confirms 12 boxes are here. We agree to release the two unhanded boxes from this promise; no food was returned by this change.",
+    );
+  await kitchen
+    .getByRole("button", { name: "Save my response", exact: true })
+    .click();
+  await kitchen
+    .getByRole("status")
+    .filter({ hasText: "Your response is recorded." })
+    .waitFor();
+  const recovered = (await get(kitchen, `allocations/${allocation.id}`)).record;
+  assert.equal(recovered.recovery.change.state, "applied");
+  assert.equal(recovered.quantity, "27");
+  assert.equal(recovered.recovery.original_promise_quantity, "30");
+  assert.equal(recovered.recovery.rejected_quantity, "1");
+  assert.equal(recovered.recovery.physical_unknown_quantity, "0");
+  assert.equal(recovered.state, "partial_closed");
+  const afterChange = (await get(recipient, `needs/${needId}`)).record;
+  assert.equal(afterChange.requested_quantity, "50");
+  assert.equal(afterChange.committed_quantity, "27");
+  assert.equal(afterChange.remaining_quantity, "23");
+  await shot(kitchen, "recovery-agreed");
+  step = "Correcting a physical report without changing its actual time";
+  const earlierHandoff = recovered.recovery.custody_history.find(
+    (report) => report.active && report.kind === "handoff",
+  );
+  assert.equal(earlierHandoff.can_correct, true);
+  await kitchen
+    .getByText("Physical reports and corrections", { exact: true })
+    .click();
+  await kitchen
+    .getByText("Correct this report", { exact: true })
+    .first()
+    .click();
+  await kitchen.locator(`#correction-${earlierHandoff.id}-quantity`).fill("28");
+  await kitchen
+    .locator(`#correction-${earlierHandoff.id}-note`)
+    .fill(
+      "Clarified loading-point record: 28 boxes physically changed hands. The two remaining promised boxes were later found in the cold room. Quantity and actual time are unchanged.",
+    );
+  await kitchen
+    .getByLabel(
+      "This replaces the earlier report with the actual count and time. It does not record another movement of food.",
+    )
+    .check();
+  await kitchen
+    .getByRole("button", { name: "Save correction for review", exact: true })
+    .click();
+  await kitchen
+    .getByRole("status")
+    .filter({ hasText: "Correction recorded for review." })
+    .waitFor();
+  const corrected = (await get(kitchen, `allocations/${allocation.id}`)).record;
+  assert.equal(
+    corrected.collected_quantity,
+    "28",
+    "A correction cannot double-count a handoff.",
+  );
+  const currentHandoff = corrected.recovery.custody_history.find(
+    (report) => report.active && report.kind === "handoff",
+  );
+  assert.equal(
+    currentHandoff.occurred_at,
+    earlierHandoff.occurred_at,
+    "Quantity-only correction preserves the actual source timestamp, including fractions.",
+  );
+  assert.equal(
+    corrected.recovery.custody_history.find(
+      (report) => report.id === earlierHandoff.id,
+    ).active,
+    0,
+  );
+  assert.equal(currentHandoff.supersedes_id, earlierHandoff.id);
+  assert.equal(
+    corrected.recovery.original_trip.context_key,
+    recovered.recovery.original_trip.context_key,
+  );
+  results.push(
+    "A real physical-report correction keeps the original source visible, preserves its exact timestamp and original trip, and does not double-count the handoff.",
+  );
+  const needAfterCorrection = (await get(recipient, `needs/${needId}`)).record;
+  assert.equal(needAfterCorrection.state, "review_required");
+  assert.equal(
+    needAfterCorrection.remaining_quantity,
+    "0",
+    "A physical correction cannot silently reopen unconfirmed receiving capacity.",
+  );
+  await open(recipient, `/needs/${needId}/edit`);
+  await recipient
+    .getByLabel(
+      "I confirm this total and the receiving requirements for our team.",
+    )
+    .check();
+  await recipient
+    .getByRole("button", { name: "Update receiving need", exact: true })
+    .click();
+  await recipient.waitForURL(/#\/needs\/\d+$/);
+  await recipient.locator("#screen[aria-busy]").waitFor({ state: "hidden" });
+  const reconfirmed = (await get(recipient, `needs/${needId}`)).record;
+  assert.equal(reconfirmed.state, "open");
+  assert.equal(reconfirmed.requested_quantity, "50");
+  assert.equal(reconfirmed.committed_quantity, "27");
+  assert.equal(reconfirmed.remaining_quantity, "23");
+  results.push(
+    "Correcting physical facts pauses receiving capacity; the actual receiving contact explicitly re-confirms the full50 before the remaining23 can receive new invitations.",
+  );
+  await open(coordinator, `/offers/${offerId}`);
+  await coordinator
+    .getByLabel(
+      "I have reviewed the actual count, changed promises and partner confirmations.",
+    )
+    .check();
+  await coordinator
+    .getByRole("button", { name: "Check and resume invitations", exact: true })
+    .click();
+  await coordinator
+    .getByRole("status")
+    .filter({ hasText: "Invitations resumed" })
+    .waitFor();
+  const resumed = (await get(kitchen, `offers/${offerId}`)).record;
+  assert.equal(resumed.state, "open");
+  assert.equal(resumed.available_quantity, "12");
+  assert.equal(
+    resumed.stock_projection.usable_on_hand_quantity,
+    "12",
+    "Releasing a promise cannot invent physically returned stock.",
+  );
+  results.push(
+    "Known rejected food stays at the receiving site; actual kitchen count and both partner replies explicitly change30 to27, keep original30, retain physical outcomes and leave23 of the full50 still needed. Native checks safely resume invitations without inventing returned stock.",
   );
 
   const recoveryDescription = `Recovery-check meal boxes ${token}`;

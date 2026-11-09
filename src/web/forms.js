@@ -304,9 +304,9 @@ export function occurrenceFields(prefix, zone) {
     ),
   );
 }
-export function occurredAt(data, zone, now) {
+export function occurredAt(data, zone, now, original = null) {
   const value = data.get("occurred")
-    ? readLocal(data, "occurred", zone)
+    ? readLocal(data, "occurred", zone, original)
     : now();
   if (new Date(value) > new Date(now()))
     throw new Error(

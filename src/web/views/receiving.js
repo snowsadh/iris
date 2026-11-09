@@ -31,7 +31,7 @@ function needState(record) {
   if (record.state === "review_required")
     return ["Changed receiving facts need review", "warning"];
   if (record.state === "needs_details")
-    return ["Partner details needed", "warning"];
+    return ["Receiving details needed", "warning"];
   if (Number(record.requested_quantity) === 0)
     return ["No meals needed for this window", ""];
   return [`${boxCount(record.remaining_quantity)} still needed`, ""];
@@ -101,7 +101,7 @@ export function needList(ctx) {
               el(
                 "p",
                 {},
-                `Receiving before ${time(record.receiving_until, record.site?.time_zone)}`,
+                `Receiving ${time(record.receiving_from, record.site?.time_zone)} to ${time(record.receiving_until, record.site?.time_zone)}`,
               ),
             ),
             `/needs/${record.id}`,
@@ -146,7 +146,15 @@ function needForm(ctx, record) {
         value: record?.requested_quantity || "",
         required: true,
       }),
-      dateTimeField("Receiving door open until", {
+      dateTimeField("Receiving door opens", {
+        id: "need-receiving-from",
+        name: "receiving_from",
+        zone,
+        value: localValue(record?.receiving_from, zone),
+        required: true,
+        help: "The collector may arrive only within this recorded receiving window.",
+      }),
+      dateTimeField("Receiving door closes", {
         id: "need-receiving",
         name: "receiving_until",
         zone,
@@ -210,6 +218,7 @@ function needForm(ctx, record) {
         ...(editing ? { need_id: record.id, revision: record.revision } : {}),
         quantity: data.get("quantity"),
         unit: "meal_box",
+        receiving_from: readLocal(data, "receiving_from", zone),
         receiving_until: readLocal(data, "receiving_until", zone),
         confirmed_until: readLocal(data, "confirmed_until", zone),
         excluded_allergens: exclusions,
@@ -258,7 +267,7 @@ export function needEntry(ctx) {
             el(
               "h2",
               {},
-              `Receiving before ${time(need.receiving_until, need.site?.time_zone)}`,
+              `Receiving ${time(need.receiving_from, need.site?.time_zone)} to ${time(need.receiving_until, need.site?.time_zone)}`,
             ),
             el(
               "p",
@@ -359,6 +368,7 @@ export function needDetail(ctx) {
         "warning",
       ),
     facts([
+      ["Need confirmed by", record.contact_name || "Receiving team"],
       ["Whole window’s need", boxCount(record.requested_quantity)],
       ["Held for replies", boxCount(record.held_quantity)],
       [
@@ -373,7 +383,11 @@ export function needDetail(ctx) {
         "warning",
       ),
     facts([
-      ["Receiving until", time(record.receiving_until, record.site?.time_zone)],
+      ["Receiving opens", time(record.receiving_from, record.site?.time_zone)],
+      [
+        "Receiving closes",
+        time(record.receiving_until, record.site?.time_zone),
+      ],
       [
         "Need details confirmed until",
         time(record.confirmed_until, record.site?.time_zone),

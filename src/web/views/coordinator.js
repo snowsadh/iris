@@ -38,15 +38,22 @@ const workText = (item) => {
   if (food)
     return [
       "Changed food count needs review",
-      `${food.description} · ${boxCount(food.current_quantity)} currently counted`,
+      `${food.description} · kitchen stock and promises need review`,
       `/offers/${food.id}`,
     ];
   const captions = {
     expire_invitation: "Invitation reply window ended",
     assign_collector: "Reserved food needs a collector",
+    confirm_collector: `${record.collector_name || "Assigned collector"} needs to confirm the trip`,
+    review_change: "Collection change needs partner replies",
     check_pickup: "Agreed pickup time passed",
     check_arrival: "Receiving count is overdue",
-    resolve_receipt: "Receiving count differs from the commitment",
+    resolve_receipt:
+      record.state === "closed_unconfirmed"
+        ? "Expected arrival closed · physical outcome still unknown"
+        : record.state === "custody_review"
+          ? "Physical reports do not yet match"
+          : "Receiving outcome needs follow-up",
   };
   return [
     captions[item.kind] || "A collection needs review",
@@ -71,7 +78,7 @@ export function worklist(ctx) {
         : "work-page",
     },
     heading(
-      "Keep tonight’s food moving.",
+      "Keep food handoffs moving.",
       "Clear up changed facts, confirm who acts next and check what actually arrived.",
       "Coordinator work",
     ),
@@ -132,17 +139,26 @@ export function worklist(ctx) {
   if (record) {
     const [state, tone] = collectionState(record);
     append(context, tag(state, tone));
-    if (record.state === "receipt_issue") append(context, custody(record));
+    if (
+      ["receipt_issue", "custody_review", "closed_unconfirmed"].includes(
+        record.state,
+      )
+    )
+      append(context, custody(record));
     else
       append(
         context,
         facts([
           ["Food quantity", boxCount(record.quantity)],
           ["Collector", record.collector_name || "Not assigned"],
-          [
-            "Reply deadline",
-            time(record.hold_until, record.need.site?.time_zone),
-          ],
+          ...(record.state === "held"
+            ? [
+                [
+                  "Reply deadline",
+                  time(record.hold_until, record.need.site?.time_zone),
+                ],
+              ]
+            : []),
           [
             "Pickup agreed",
             record.transport_confirmed
@@ -151,6 +167,26 @@ export function worklist(ctx) {
           ],
         ]),
       );
+    if (current.kind === "review_change" && record.recovery?.change) {
+      const waiting = (record.recovery.change.required_parties || [])
+        .filter(
+          (party) =>
+            record.recovery.change.responses?.[party]?.status === "awaiting",
+        )
+        .map((party) =>
+          party === "recipient"
+            ? record.need.contact_name || "Receiving contact"
+            : record.offer.contact_name || "Kitchen contact",
+        );
+      if (waiting.length)
+        append(
+          context,
+          notice(
+            `Reply needed from ${waiting.join(" and ")}. The current promise stays recorded until the required partners confirm.`,
+            "warning",
+          ),
+        );
+    }
     if (record.note)
       append(
         context,
@@ -167,7 +203,12 @@ export function worklist(ctx) {
       context,
       facts([
         ["Originally declared", boxCount(food.declared_quantity)],
-        ["Current count", boxCount(food.current_quantity)],
+        [
+          "Recorded lot total, including handed-over food",
+          food.stock_projection?.review_required
+            ? "Uncertain · physical history needs review"
+            : boxCount(food.current_quantity),
+        ],
         [
           "Held and reserved",
           boxCount(
@@ -221,6 +262,10 @@ export function worklist(ctx) {
 function reviewProposal(ctx, proposal, origin) {
   const offer = ctx.record;
   const changes = [];
+  if (offer.state !== "open")
+    changes.push(
+      "Current food facts do not allow new invitations. This saved proposal remains visible, but cannot be sent.",
+    );
   if (proposal.offer_revision !== offer.revision)
     changes.push(
       "The kitchen record has changed since this proposal. Prepare a fresh draft from the current food facts.",
@@ -266,9 +311,9 @@ function reviewProposal(ctx, proposal, origin) {
           need ? boxCount(need.remaining_quantity) : "Refresh receiving facts",
         ],
         [
-          "Receiving before",
+          "Receiving window",
           need
-            ? time(need.receiving_until, need.site?.time_zone)
+            ? `${time(need.receiving_from, need.site?.time_zone)} to ${time(need.receiving_until, need.site?.time_zone)}`
             : "Not available",
         ],
       ]),
@@ -326,23 +371,27 @@ function reviewProposal(ctx, proposal, origin) {
 
 export function planPage(ctx) {
   const offer = ctx.record;
-  if (offer.state !== "open")
-    return empty(
-      "Food facts need review first",
-      "The kitchen’s current food facts do not allow new invitations. Existing promises remain recorded.",
-      link("Open food offer", `/offers/${offer.id}`, "button"),
-    );
   const zone = offer.site?.time_zone;
   const main = el(
     "div",
     {},
     link("← Back to this food offer", `/offers/${offer.id}`, "back-link"),
     heading(
-      "Choose receiving partners, then review.",
+      offer.state === "open"
+        ? "Choose receiving partners, then review."
+        : "Review the saved planning result.",
       "A suggestion does not reserve food. You decide whether to send invitations from current confirmed records.",
       offer.description,
     ),
   );
+  if (offer.state !== "open")
+    append(
+      main,
+      notice(
+        "New invitations are paused or the food window has ended. Saved planning results remain visible; the kitchen and coordinator must review current facts before a new invitation.",
+        "warning",
+      ),
+    );
   let review = null;
   if (ctx.draftPlan) review = reviewProposal(ctx, ctx.draftPlan, "manual");
   else if (ctx.savedPlan?.state === "proposed" && ctx.savedPlan.proposal)
@@ -376,7 +425,7 @@ export function planPage(ctx) {
         el(
           "p",
           { className: "help" },
-          `Receive before ${time(need.receiving_until, need.site?.time_zone)}`,
+          `Receive ${time(need.receiving_from, need.site?.time_zone)} to ${time(need.receiving_until, need.site?.time_zone)}`,
         ),
         el(
           "p",
@@ -410,6 +459,10 @@ export function planPage(ctx) {
   );
   const manual = actionForm({
     title: "Make your own invitation draft",
+    blockedReason:
+      offer.state !== "open"
+        ? "Current food facts must be confirmed before preparing a new invitation."
+        : "",
     pendingText: "Checking the current kitchen and receiving records…",
     description:
       "Choose quantities from the shared need. Leave 0 for a partner you are not inviting. Current food and receiving facts are checked before the review opens.",
@@ -482,11 +535,13 @@ export function planPage(ctx) {
     actionForm({
       title: "Ask for a suggested split",
       blockedReason:
-        ctx.savedPlan?.state === "running"
-          ? "An earlier planning request has not finished. Read its saved result before starting another."
-          : Number(offer.available_quantity) === 0
-            ? "No unassigned food remains for a new proposal."
-            : "",
+        offer.state !== "open"
+          ? "Current food facts must be confirmed before requesting another suggestion."
+          : ctx.savedPlan?.state === "running"
+            ? "An earlier planning request has not finished. Read its saved result before starting another."
+            : Number(offer.available_quantity) === 0
+              ? "No unassigned food remains for a new proposal."
+              : "",
       expiresAt: earliest(offer.collect_by, offer.handling_until),
       now: ctx.now,
       pendingText: "Waiting for the saved planning result…",
@@ -500,6 +555,7 @@ export function planPage(ctx) {
             "Planning result saved. Review it before sending any invitation.",
         }),
     }),
+    planEvidence(ctx.savedPlan),
   );
   append(
     main,
@@ -525,6 +581,115 @@ export function planPage(ctx) {
   return main;
 }
 
+function planEvidence(run) {
+  if (!run) return null;
+  const toolNames = {
+    ReadOffer: "Read confirmed food details",
+    ReadCurrentNeeds: "Read current receiving needs",
+    ReadCollectionFacts: "Read saved collection agreements",
+    ReadCaseEvidence: "Read a partner’s source confirmation",
+    SubmitProposal: "Checked a proposed food split",
+    RequestReview: "Asked the coordinator to review an issue",
+  };
+  const measures = (value, names) =>
+    Object.entries(names)
+      .filter(([key]) => Number.isFinite(value?.[key]) && value[key] >= 0)
+      .map(([key, label]) => [label, String(value[key])]);
+  const session = measures(run.usage?.session, {
+    total_interactions: "Model interactions",
+    total_prompt_tokens: "Input tokens across this run",
+    total_completion_tokens: "Output tokens across this run",
+    total_tool_calls: "Tool calls across this run",
+    total_llm_duration_ms: "Measured model time in milliseconds",
+  });
+  const response = run.usage?.last_response;
+  const final = measures(
+    {
+      input_tokens: Number.isFinite(response?.input_tokens)
+        ? response.input_tokens
+        : response?.prompt_tokens,
+      output_tokens: Number.isFinite(response?.output_tokens)
+        ? response.output_tokens
+        : response?.completion_tokens,
+      total_tokens: response?.total_tokens,
+    },
+    {
+      input_tokens: "Input tokens in final response",
+      output_tokens: "Output tokens in final response",
+      total_tokens: "Total tokens in final response",
+    },
+  );
+  return el(
+    "details",
+    { className: "section-gap" },
+    el("summary", {}, "How this suggestion was made"),
+    el(
+      "div",
+      { className: "panel" },
+      facts([
+        ["Model used", run.model || "Not recorded"],
+        ["Started", time(run.started_at, "UTC")],
+        [
+          "Finished",
+          run.finished_at ? time(run.finished_at, "UTC") : "No finish recorded",
+        ],
+      ]),
+      el("h3", {}, "Recorded actions"),
+      run.tool_audit?.length
+        ? el(
+            "ol",
+            { className: "audit-list" },
+            run.tool_audit.map((call) =>
+              el(
+                "li",
+                {},
+                el(
+                  "strong",
+                  {},
+                  toolNames[call.tool] || "Recorded case action",
+                ),
+                el("p", { className: "help" }, time(call.at, "UTC")),
+                call.tool === "SubmitProposal" &&
+                  call.outcome?.ok === false &&
+                  notice(
+                    "This proposal check did not pass. No invitation was sent.",
+                    "warning",
+                  ),
+              ),
+            ),
+          )
+        : el(
+            "p",
+            { className: "help" },
+            "No tool calls were recorded for this result.",
+          ),
+      session.length || final.length
+        ? el(
+            "section",
+            { className: "section-gap" },
+            el("h3", {}, "Measured model use"),
+            el(
+              "p",
+              { className: "help" },
+              "Tokens are the text units reported by the model. These are measured counts, not cost estimates. Final-response counts are separate from totals for the whole run.",
+            ),
+            session.length ? facts(session) : null,
+            final.length ? facts(final) : null,
+          )
+        : el(
+            "p",
+            { className: "help section-gap" },
+            "Model-use measurements were not provided for this result.",
+          ),
+      el(
+        "p",
+        { className: "help section-gap" },
+        "These recorded actions can read facts and propose a split. They cannot reserve food, agree a trip or confirm a physical handoff.",
+      ),
+    ),
+  );
+}
+
 export function caseEvidence(ctx) {
   const section = el("section", {
     className: "section-gap",
@@ -534,6 +699,16 @@ export function caseEvidence(ctx) {
     offer_confirmed: "Kitchen food declaration",
     food_reconfirmed: "Kitchen details confirmed again",
     stock_observed: "Changed kitchen count",
+    stock_counted: "Physical count at the kitchen",
+    change_requested: "Collection change proposed",
+    change_response: "Partner replied to a collection change",
+    invitation_withdrawn: "Unaccepted invitation withdrawn",
+    trip_reconfirmed: "Collector agreed updated trip instructions",
+    record_disposition: "Known physical food outcome recorded",
+    receive_more: "Additional food accepted",
+    custody_corrected: "Earlier physical report corrected",
+    quarantine_disposed: "Kitchen recorded quarantine disposal",
+    invitations_resumed: "Invitations resumed after review",
     need_confirmed: "Receiving need confirmed",
     need_reconfirmed: "Receiving need updated",
     invitation_held: "Invitation hold saved",

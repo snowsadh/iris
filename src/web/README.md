@@ -11,14 +11,14 @@ Sign-in belongs to IRIS’s own password form. The app reads the signed-in perso
 - `render.js`: safe text and conditional-child rendering, saved facts and handoff drawings.
 - `forms.js`: shared input, local-time entry, allergen labels and save/retry behavior.
 - `time.js`: site-local dates, clock changes and explicit time conversion.
-- `views/`: kitchen offers, receiving needs, collections, coordinator review and partner locations.
+- `views/`: kitchen offers, receiving needs, invitation/trip flow, physical reports, commitment changes, coordinator review and partner locations.
 - `styles.css`: the service’s responsive layout and visual rules.
 
 Food facts, commitments, trips and receipts live in IRIS. The browser does not keep a second food ledger. It stores only an unfinished command’s request ID, action, payload and start time in session storage, scoped to the signed-in account. It saves that recovery reference before sending. A reload can check the same request instead of creating a duplicate. Known outcomes and sign-out clear the reference.
 
 Open cases check for saved updates every 15 seconds and when the window becomes active. Unsaved form input is kept; changed records prompt a fresh read before a stale submission.
 
-Collection forms use the recorded site’s time zone. A repeated local clock reading needs an explicit choice. Unknown dates remain blank. Allergen inputs distinguish present, checked-absent and unassessed facts; users can add labels beyond the common choices.
+Receiving needs state when the door opens and closes. Collection forms use the recorded site’s time zone. A repeated local clock reading needs an explicit choice. Unknown dates remain blank. A quantity-only correction retains the original physical timestamp’s full precision. Allergen inputs distinguish present, checked-absent and unassessed facts; users can add labels beyond the common choices.
 
 ## Check it
 
@@ -31,7 +31,7 @@ npx playwright install chromium
 npm run test:browser
 ```
 
-The browser runner creates four temporary native logins in a fresh isolated network. It runs the real kitchen, coordinator, receiving and collector journey, then removes those logins. Saved test records remain for inspection. An intentional custody discrepancy stays open; the runner never erases it to reuse a collector. It uses a manual invitation plan and makes no paid model call.
+The browser runner creates four temporary native logins in a fresh isolated network. It runs the real kitchen, coordinator, receiving and collector journey, then removes those logins. Saved test records remain for inspection. It records a partial pickup and receipt, then requires both partners to agree a smaller commitment backed by a real kitchen count and a known rejected box. Earlier promises and physical reports remain in the record. Repeated runs use fresh networks instead of erasing history. It uses a manual invitation plan and makes no paid model call.
 
 Screenshots go to `/tmp/allfedo-browser-check`; override with `ALLFEDO_BROWSER_OUTPUT`. An existing Chromium binary can be selected with `PLAYWRIGHT_CHROMIUM_EXECUTABLE`.
 
@@ -46,3 +46,5 @@ That private file needs `accounts.coordinator`, `accounts.kitchen`, `accounts.re
 The time checks run without IRIS. Browser checks require the running, configured application. Neither proves food safety, real transport capacity or a successful physical rescue.
 
 Public Sans is bundled under its [Open Font License](assets/OFL.txt).
+
+A changed promise never explains missing food. Physical reports use their actual occurrence time; late reports remain possible after current instructions change. Corrections keep the original report visible. Returned food stays quarantined. Only the native record’s explicit permission can expose a correction action.
