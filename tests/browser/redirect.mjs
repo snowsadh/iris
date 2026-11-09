@@ -68,7 +68,7 @@ export async function onwardJourney(ui) {
   );
   await ui.enterFood(
     kitchen,
-    `Prepared vegetable rice · onward check ${ui.token}`,
+    "Prepared vegetable rice",
   );
   await kitchen.locator("#food-quantity").fill("20");
   await kitchen

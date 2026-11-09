@@ -146,12 +146,16 @@ export function drawing(kind) {
   return svg;
 }
 export function brand() {
-  const mark = el("img", { src: "/allfedo/assets/mark.svg", alt: "", width: 36, height: 36 });
   return el(
     "a",
-    { className: "brand", href: "#/" },
-    mark,
-    el("div", {}, "Allfedo", el("small", {}, "Good food. Clear handoffs.")),
+    { className: "brand", href: "#/", "aria-label": "Allfedo home" },
+    el("img", {
+      src: "/allfedo/assets/wordmark.svg",
+      alt: "Allfedo",
+      width: 144,
+      height: 35,
+    }),
+    el("small", {}, "Good food. Clear handoffs."),
   );
 }
 export function custody(record) {

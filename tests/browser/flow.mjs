@@ -41,7 +41,7 @@ const pages = {};
 const results = [];
 let step = "Starting native sessions";
 const token = Date.now().toString(36);
-const foodDescription = `Sealed vegetable rice · browser check ${token}`;
+const foodDescription = "Sealed vegetable rice";
 
 async function login(role, expectedRole = role) {
   const context = await browser.newContext({
@@ -56,6 +56,7 @@ async function login(role, expectedRole = role) {
   await page.locator('[name="IRISPassword"]').fill(accounts[role].password);
   await page.locator('[name="IRISLogin"]').click();
   await page.locator("#app .header").waitFor({ timeout: 30000 });
+  await page.locator(".brand img").evaluate((image) => image.decode());
   const session = await get(page, "session");
   assert.equal(
     session.user.role,
@@ -821,7 +822,6 @@ try {
     clock,
     saveSite,
     enterFood,
-    token,
     collectorId: String(accounts.collector.actor_id),
     results,
     setStep(value) {
@@ -837,7 +837,6 @@ try {
     clock,
     saveSite,
     enterFood,
-    token,
     collectorId: String(accounts.collector.actor_id),
     results,
     setStep(value) {

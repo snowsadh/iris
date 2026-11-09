@@ -116,20 +116,16 @@ summary:focus-visible {
 }
 
 .brand {
-  display: flex;
-  align-items: center;
-  gap: 10px;
+  display: block;
   text-decoration: none;
-  color: #543045;
-  font-size: 29px;
-  letter-spacing: -1.3px;
-  font-weight: 750;
+  color: #3d2738;
   flex: none;
 }
 
 .brand img {
-  width: 32px;
-  height: 34px;
+  display: block;
+  width: 144px;
+  height: auto;
 }
 
 .brand small {
@@ -137,7 +133,7 @@ summary:focus-visible {
   font-size: 11px;
   font-weight: 450;
   letter-spacing: 0;
-  margin-top: -4px;
+  margin-top: 4px;
   color: var(--muted);
 }
 
@@ -957,13 +953,8 @@ details > .action-form {
     padding: 18px 17px;
     gap: 12px;
   }
-  .brand {
-    font-size: 27px;
-    gap: 8px;
-  }
   .brand img {
-    width: 27px;
-    height: 29px;
+    width: 124px;
   }
   .brand small {
     display: none;
