@@ -2,7 +2,7 @@
 
 Allfedo helps known kitchens and shelters turn surplus food into agreed pickups and confirmed receipts, with a coordinator handling unresolved work.
 
-**Current stage: working native core; full application in progress.** The food rules, saved commands, AI Hub decision, explicit coordinator send, collection records, and local test email have run on the actual contest image. Signed-in screens and complete recovery paths are still being built. Test partners and quantities are fictional; this is not a field-validated food service.
+**Current stage: working signed-in app; complete recovery paths in progress.** Four roles have completed a real browser journey on the contest image, from current food and need through reviewed invitations, collection and receiving counts. A live AI Hub decision and local test email have also run. Test partners and quantities are fictional; this is not a field-validated food service.
 
 ## Local runtime setup
 
@@ -44,6 +44,17 @@ python3 scripts/iris_runtime.py --test
 
 The first checks cover host-side rules and installer contracts. `--test` runs native commands, shared-capacity races, temporary-lock recovery, persistent-worker cleanup, partner/food confirmation, and signed-in HTTP checks. It creates separate synthetic networks, keeps their records for inspection, and removes its temporary login accounts. It makes no model call. Compose is validated quietly to keep resolved credentials out of output.
 
+For browser checks, install Node.js 20 or newer:
+
+```bash
+npm ci
+npx playwright install chromium
+npm run test:time
+npm run test:browser
+```
+
+The browser journey creates four private test accounts, signs into the real app, and follows invitations, collection, partial receipt and recovery after a lost save response. It removes those logins afterward and retains their isolated case history. It uses a manual plan and makes no model call. Browser screenshots are saved outside the repository in `/tmp/allfedo-browser-check`. See the [browser guide](src/web/README.md) for an existing browser binary or separately prepared test accounts.
+
 ## Native workflow
 
 IRIS runs the integration workflow, called a **Production**. A signed-in partner command enters a Business Service. A Business Process routes it to the native AI Hub agent or the saved food-rescue commands. The agent reads only the authorized case and can submit a proposal or ask for review. It cannot reserve food or approve a pickup.
@@ -58,11 +69,12 @@ The Python module [invitations.py](src/python/allfedo/invitations.py) checks a p
 
 A passing proposal still needs recipient acceptance and collection arrangements. This check does not reserve food. IRIS must recheck the current records inside the transaction that creates the holds.
 
-The current native release accepts whole meal boxes only. It does not infer vehicle fit or travel time. Partners confirm their location, entrance, time zone, food conditions, and packaging. Missing facts remain unknown; changed receiving needs preserve existing promises. Complete shortage/custody resolution and the full browser journey remain release work.
+The current native release accepts whole meal boxes only. It does not infer vehicle fit or travel time. Partners confirm their location, entrance, time zone, food conditions, and packaging. Missing facts remain unknown; changed receiving needs preserve existing promises. Complete shortage and custody resolution remains release work.
 
 ## Project guide
 
 - [Complete product story](doc/PRODUCT.md): people, commitments, physical handoffs, and failure handling.
+- [Walkthrough and recording guide](doc/WALKTHROUGH.md): prepare the fictional partners, follow a complete case, record the demo, and perform human checks.
 - [Experience brief](doc/INTERFACE.md): role-specific work, visual cues, and design review requirements.
 - [Technical plan](doc/TECHNICAL_PLAN.md): native integration, shared capacity, transactions, retries, and implementation order.
 - [Submission checklist](doc/SUBMISSION.md): required work and optional bonuses.
