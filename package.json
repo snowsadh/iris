@@ -4,6 +4,8 @@
   "type": "module",
   "scripts": {
     "test:time": "node --test tests/browser/time.test.mjs",
+    "test:transport": "node --test tests/browser/transport.test.mjs",
+    "test:demo": "node tests/browser/demo.mjs",
     "test:browser": "python3 scripts/browser_test.py"
   },
   "devDependencies": {

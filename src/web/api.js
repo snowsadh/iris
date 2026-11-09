@@ -144,7 +144,10 @@ export const api = {
       body: JSON.stringify(proposal),
     });
   },
-  command(action, payload) {
+  async command(action, payload) {
+    // Resolve the form's "just now" marker once. Retries keep this exact instant.
+    if (payload.occurred_at === null)
+      payload = { ...payload, occurred_at: (await request("session")).now };
     if (pending.length) {
       throw new RequestError(
         "An earlier change still needs its saved result checked. Use the recovery notice before sending another change.",

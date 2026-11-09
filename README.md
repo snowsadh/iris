@@ -69,6 +69,7 @@ Browser checks also require **Node.js 20+**:
 npm ci
 npx playwright install chromium
 npm run test:time
+npm run test:transport
 npm run test:browser
 ```
 

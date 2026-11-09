@@ -254,7 +254,7 @@ try {
     ["physical"],
     "Changed instructions block a new agreement but cannot erase an actual physical report.",
   );
-  assert.equal(rendered.defaultTime, "2026-11-09T12:00:00.000Z");
+  assert.equal(rendered.defaultTime, null, "Just-now reports request a fresh server time.");
   assert.equal(rendered.lateTime, "2026-11-09T11:45:00.000Z");
   assert.equal(rendered.futureRejected, true);
   assert.deepEqual(rendered.absent, ["peanut"]);

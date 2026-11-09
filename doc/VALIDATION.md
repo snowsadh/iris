@@ -1,6 +1,6 @@
 # What has been checked
 
-Checked 9 November 2026 on AI Hub Community **2027.1.0AI.109.0**, with Embedded Python **3.12.3**. Latest checked implementation: [`7cc3e48`](https://github.com/snowsadh/iris/commit/7cc3e489b4017979588f4613238ce157d8829f08).
+Checked 9 November 2026 on AI Hub Community **2027.1.0AI.109.0**, with Embedded Python **3.12.3**. Native release baseline: [`7cc3e48`](https://github.com/snowsadh/iris/commit/7cc3e489b4017979588f4613238ce157d8829f08). The later demo launcher and report-time fix described below were checked on the same runtime; the complete browser journey passed again.
 
 ## Repeat the release checks
 
@@ -13,6 +13,7 @@ python3 scripts/iris_runtime.py --test
 npm ci
 npx playwright install chromium
 npm run test:time
+npm run test:transport
 npm run test:browser
 ```
 
@@ -20,6 +21,7 @@ npm run test:browser
 |---|---|
 | Host Python | 46 passed: proposal rules, stock projection and installer contracts. |
 | Browser time handling | Four passed, including another device time zone, clock changes and exact source-time preservation. |
+| Browser report transport | One passed: fresh server time for a just-now report, exact retry after a lost response, and unchanged explicit event time. |
 | Native integration | All 17 runner groups passed on the real image. |
 | Signed-in web requests | Core 65, onward delivery 32 and rejected-food follow-up 29 checks passed. These are included in the native runner. |
 | Browser journey | Five independent accounts covering four roles and two receiving teams passed. Temporary logins were removed afterward. |
@@ -28,6 +30,10 @@ npm run test:browser
 The native groups cover commands, arithmetic, two-process capacity races, temporary lock recovery, partner facts, persistent workers, changed promises, onward delivery, rejected-food movements, unavailable provider, notification guards and signed-in web requests. A passing host test alone does not establish these runtime results.
 
 The browser records a real 35-box invitation, 30 accepted, 28 handed over and 27 received. It preserves the original promise, requires current kitchen and receiving confirmations, tests physical corrections, and recovers a lost response after reload without duplicating a saved action.
+
+The optional demo launcher is checked separately with `npm run test:demo`, after preparing the local demo accounts. This opens six native sessions without a model call, checks their identities and distinct window titles, and confirms that signing one out leaves another signed in. It uses `ALLFEDO_BASE_URL` if the local web port differs.
+
+A repeated browser run exposed a just-now handoff dated about 0.8 seconds before the collector agreement by the browser's estimated clock. Just-now physical reports now read a fresh server time before sending. The resulting timestamp is saved with the recovery reference; retries reuse it. Explicit earlier times and native agreement checks remain unchanged.
 
 A separate browser case collects 18 boxes once, redirects 15 to one accepted destination and three to another, and records each receipt. It checks capacity for all carried food and prevents the new recipient from opening the previous team's private case. Another case follows two rejected boxes through one return and one disposal; accepted food stays two and the same rejected portions are counted once.
 
