@@ -1,0 +1,12 @@
+{
+  "name": "allfedo",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test:time": "node --test tests/browser/time.test.mjs",
+    "test:browser": "node tests/browser/flow.mjs"
+  },
+  "devDependencies": {
+    "playwright": "1.65.0"
+  }
+}
