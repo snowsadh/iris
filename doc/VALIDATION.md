@@ -1,6 +1,6 @@
 # What has been checked
 
-Checked 9 November 2026 on AI Hub Community **2027.1.0AI.109.0**, with Embedded Python **3.12.3**. Source implementation: [`f6459b6`](https://github.com/snowsadh/iris/commit/f6459b66d5fadecc3311ec643bdf727977211d85). Later documentation and submission assets do not change that implementation.
+Checked 9 November 2026 on AI Hub Community **2027.1.0AI.109.0**, with Embedded Python **3.12.3**. Latest checked implementation: [`4ee4f90`](https://github.com/snowsadh/iris/commit/4ee4f90). The fresh-install check below records its source separately.
 
 ## Repeat the release checks
 
@@ -18,7 +18,7 @@ npm run test:browser
 
 | Check | Observed result |
 |---|---|
-| Host Python | 45 passed: proposal rules, stock projection and installer contracts. |
+| Host Python | 46 passed: proposal rules, stock projection and installer contracts. |
 | Browser time handling | Four passed, including another device time zone, clock changes and exact source-time preservation. |
 | Native integration | All 17 runner groups passed on the real image. |
 | Signed-in web requests | Core 65, onward delivery 32 and rejected-food follow-up 29 checks passed. These are included in the native runner. |
@@ -38,6 +38,8 @@ Cloned the public branch at `f6459b6` into a separate directory. Reused only the
 Setup, all 17 native groups, six demo-account sign-ins, dependency installation, four time checks and the full browser journey passed. No development database, private demo account file or provider key was copied. The 3 GB vendor archive was not downloaded again. Actual archive loading and build verification had already succeeded during the main installation.
 
 An earlier isolated SMTP-outage check stopped the test inbox. Delivery remained pending after attempt one, then succeeded on attempt two after the inbox restarted. This establishes bounded retry behavior for that case, not guaranteed external email delivery.
+
+A later branch switch replaced bind-mounted source folders. Setup previously accepted the empty mounted tree while compiled native code remained available. The installer now compares mounted runtime-file hashes with the checkout before stopping workers or compiling. The actual stale mount was refused. Recreating the container preserved its data volume; all 17 native groups and the full browser journey then passed with the updated wordmark. Browser checks explicitly decode the authenticated brand image.
 
 ## Actual agent evidence
 
