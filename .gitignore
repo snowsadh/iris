@@ -10,6 +10,7 @@
 /doc/PRODUCT.md
 /doc/SUBMISSION.md
 /doc/WALKTHROUGH.md
+/doc/private/
 
 # Local credentials. Keep the empty setup example in Git.
 .env
