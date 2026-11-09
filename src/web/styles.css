@@ -124,7 +124,7 @@ summary:focus-visible {
 
 .brand img {
   display: block;
-  width: 144px;
+  width: 184px;
   height: auto;
 }
 
@@ -954,22 +954,32 @@ details > .action-form {
     gap: 12px;
   }
   .brand img {
-    width: 124px;
+    width: 144px;
   }
   .brand small {
     display: none;
   }
   .identity {
+    display: grid;
+    grid-template-columns: auto auto;
+    justify-items: end;
+    max-width: calc(100% - 156px);
     font-size: 11px;
-    gap: 7px;
+    gap: 0 3px;
+  }
+  .identity > div {
+    grid-column: 1 / -1;
+    min-width: 0;
+    max-width: 100%;
   }
   .identity strong {
     font-size: 11px;
-    max-width: 140px;
+    max-width: 100%;
     overflow-wrap: anywhere;
   }
   .text-button {
     font-size: 11px;
+    white-space: nowrap;
   }
   .navigation {
     gap: 3px;

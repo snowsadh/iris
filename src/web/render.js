@@ -152,7 +152,7 @@ export function brand() {
     el("img", {
       src: "/allfedo/assets/wordmark.svg",
       alt: "Allfedo",
-      width: 144,
+      width: 184,
       height: 35,
     }),
     el("small", {}, "Good food. Clear handoffs."),
