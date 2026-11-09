@@ -224,6 +224,8 @@ Halt
                                     "/tmp/allfedo-namespace.cpf"), cwd=PROJECT, check=True, timeout=120)
     commands = '''Set sc=$SYSTEM.OBJ.LoadDir("/opt/allfedo/Allfedo","ck",,1)
 If 'sc Do $SYSTEM.Status.DisplayError(sc)
+If sc Set sc=##class(Allfedo.Web.Setup).Configure()
+If 'sc Do $SYSTEM.Status.DisplayError(sc)
 If sc Set sc=##class(Ens.Director).StartProduction("Allfedo.Production")
 If 'sc Do $SYSTEM.Status.DisplayError(sc)
 Write !,"ALLFEDO_COMPILED=",(sc=1),!
@@ -234,35 +236,39 @@ Halt
     if result.returncode != 0 or _terminal_error(result.stdout) or "ALLFEDO_COMPILED=1" not in result.stdout.splitlines():
         print(result.stdout, end="")
         raise RuntimeError("Application compilation did not succeed. Review the compiler messages above.")
-    print("Allfedo compiled and its Production started. Web access, account setup, and model calls are separate checks.")
+    print("Allfedo compiled, its web routes configured, and its Production started. Partner accounts and model calls are separate steps.")
 
 
 def test_application() -> None:
     """Run real native command and two-process capacity checks without model calls."""
     _verify_selected_runtime()
-    subprocess.run(_compose_command("cp", str(PROJECT / "tests" / "native" / "AllfedoScenario.cls"),
-                                    "iris:/tmp/AllfedoScenario.cls"), cwd=PROJECT, check=True)
+    for filename in ("AllfedoScenario.cls", "AllfedoWebScenario.cls"):
+        subprocess.run(_compose_command("cp", str(PROJECT / "tests" / "native" / filename),
+                                        f"iris:/tmp/{filename}"), cwd=PROJECT, check=True)
     commands = '''Set sc=$SYSTEM.OBJ.Load("/tmp/AllfedoScenario.cls","ck")
+If 'sc Do $SYSTEM.Status.DisplayError(sc)
+If sc Set sc=$SYSTEM.OBJ.Load("/tmp/AllfedoWebScenario.cls","ck")
 If 'sc Do $SYSTEM.Status.DisplayError(sc)
 If sc { Set result=##class(AllfedoScenario).TestCommands() Write !,"ALLFEDO_COMMANDS=",result.%ToJSON(),! }
 If sc { Set result=##class(AllfedoScenario).TestRaces() Write !,"ALLFEDO_RACES=",result.%ToJSON(),! }
 If sc { Set result=##class(AllfedoScenario).TestBusyRecovery() Write !,"ALLFEDO_BUSY=",result.%ToJSON(),! }
 If sc { Set result=##class(AllfedoScenario).TestFacts() Write !,"ALLFEDO_FACTS=",result.%ToJSON(),! }
 If sc { Set result=##class(AllfedoScenario).TestProductionLocks() Write !,"ALLFEDO_WORKERS=",result.%ToJSON(),! }
+If sc Write !,"ALLFEDO_HTTP=",##class(AllfedoWebScenario).Run(),!
 Halt
 '''
     result = subprocess.run(_compose_command("exec", "-T", "iris", "iris", "session", "IRIS", "-U", "ALLFEDO"),
                             cwd=PROJECT, input=commands, text=True, capture_output=True, timeout=90)
     checks = {}
     for line in result.stdout.splitlines():
-        for name in ("COMMANDS", "RACES", "BUSY", "FACTS", "WORKERS"):
+        for name in ("COMMANDS", "RACES", "BUSY", "FACTS", "WORKERS", "HTTP"):
             prefix = f"ALLFEDO_{name}="
             if line.startswith(prefix):
                 checks[name] = json.loads(line.removeprefix(prefix))
-    if result.returncode != 0 or _terminal_error(result.stdout) or any(checks.get(name, {}).get("ok") is not True for name in ("COMMANDS", "RACES", "BUSY", "FACTS", "WORKERS")):
+    if result.returncode != 0 or _terminal_error(result.stdout) or any(checks.get(name, {}).get("ok") is not True for name in ("COMMANDS", "RACES", "BUSY", "FACTS", "WORKERS", "HTTP")):
         print(result.stdout, end="")
         raise RuntimeError("Native command or shared-capacity checks did not pass.")
-    print("Native command, capacity, fact, retry, and persistent-worker checks passed. No model call was made.")
+    print("Native commands, shared capacity, facts, retries, worker cleanup, and signed-in HTTP checks passed. No model call was made.")
 
 
 def main() -> None:

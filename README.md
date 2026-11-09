@@ -16,10 +16,19 @@ python3 scripts/iris_runtime.py /path/to/iris-community-2027.1.0AI.109.0-docker.
 
 The installer checks the archive's build/platform, loads and tags it locally, preserves private settings, and starts IRIS and a test email inbox. It verifies the running image, native version and AI Hub classes. An ignored `compose.override.yaml` selects the image and a separate data volume per build. A short initialization step prepares volume ownership; IRIS itself runs as its normal user.
 
-`--setup` creates the isolated `ALLFEDO` application namespace, compiles the source, and starts its Production. It stops an existing Allfedo Production before changing configuration or code. It creates no partner accounts and makes no model call. Use `python3 scripts/iris_runtime.py --setup` to apply source changes on the installed runtime.
+`--setup` creates the isolated `ALLFEDO` application namespace, compiles source, configures the signed-in web routes, and starts its Production. It stops an existing Allfedo Production before changing configuration or code. It creates no partner accounts and makes no model call. Use `python3 scripts/iris_runtime.py --setup` to apply source changes on the installed runtime.
+
+Prepare six fictional partners for a local walkthrough:
+
+```bash
+python3 scripts/demo.py
+```
+
+This creates four partner locations and private accounts for two kitchens, two receiving teams, a coordinator, and a collector. Usernames and random passwords are in ignored `.env.demo.json`, readable only by the local file owner. Reruns preserve accounts and history; they do not reset passwords or food records. No food, need, pickup, or model decision is invented by setup.
 
 Local developer endpoints after successful startup:
 
+- Allfedo sign-in: <http://127.0.0.1:52773/allfedo/>
 - IRIS Management Portal: <http://127.0.0.1:52773/csp/sys/UtilHome.csp>
 - Mailpit test inbox: <http://127.0.0.1:8025>
 
@@ -33,7 +42,7 @@ docker compose config --quiet
 python3 scripts/iris_runtime.py --test
 ```
 
-The first checks cover host-side rules and installer contracts. `--test` runs real IRIS commands, two-process shared-capacity checks, temporary-lock recovery, and partner/food confirmation checks. It creates separate synthetic networks and keeps their records for inspection. It makes no model call. Compose is validated quietly to keep resolved credentials out of output.
+The first checks cover host-side rules and installer contracts. `--test` runs native commands, shared-capacity races, temporary-lock recovery, persistent-worker cleanup, partner/food confirmation, and signed-in HTTP checks. It creates separate synthetic networks, keeps their records for inspection, and removes its temporary login accounts. It makes no model call. Compose is validated quietly to keep resolved credentials out of output.
 
 ## Native workflow
 
