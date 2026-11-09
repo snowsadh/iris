@@ -146,21 +146,7 @@ export function drawing(kind) {
   return svg;
 }
 export function brand() {
-  const namespace = "http://www.w3.org/2000/svg";
-  const mark = document.createElementNS(namespace, "svg");
-  mark.setAttribute("viewBox", "0 0 36 36");
-  mark.setAttribute("aria-hidden", "true");
-  const line = document.createElementNS(namespace, "path");
-  for (const [name, value] of Object.entries({
-    d: "m5 24 10-18h6l10 18M7 22c2.8 4 6.5 6 11 6s8.2-2 11-6M12 32h12",
-    fill: "none",
-    stroke: "currentColor",
-    "stroke-width": 3.5,
-    "stroke-linecap": "round",
-    "stroke-linejoin": "round",
-  }))
-    line.setAttribute(name, value);
-  append(mark, line);
+  const mark = el("img", { src: "/allfedo/assets/mark.svg", alt: "", width: 36, height: 36 });
   return el(
     "a",
     { className: "brand", href: "#/" },
@@ -225,7 +211,7 @@ export function custody(record) {
     ["Lost", balance.lost_quantity],
     ["Discarded", balance.disposed_quantity],
     ["Rejected and kept at receiving site", balance.rejected_quantity],
-    ["Returned to kitchen · quarantined", balance.returned_quantity],
+    ["Returned to kitchen", balance.returned_quantity],
     ["Still promised, not handed over", balance.unhanded_quantity],
     [
       "Known unable to arrive · recipient decision needed",

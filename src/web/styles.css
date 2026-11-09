@@ -127,7 +127,7 @@ summary:focus-visible {
   flex: none;
 }
 
-.brand svg {
+.brand img {
   width: 32px;
   height: 34px;
 }
@@ -961,7 +961,7 @@ details > .action-form {
     font-size: 27px;
     gap: 8px;
   }
-  .brand svg {
+  .brand img {
     width: 27px;
     height: 29px;
   }
