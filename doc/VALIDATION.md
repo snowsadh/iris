@@ -1,6 +1,6 @@
 # What has been checked
 
-Checked 9 November 2026 on AI Hub Community **2027.1.0AI.109.0**, with Embedded Python **3.12.3**. Latest checked implementation: [`4ee4f90`](https://github.com/snowsadh/iris/commit/4ee4f90). The fresh-install check below records its source separately.
+Checked 9 November 2026 on AI Hub Community **2027.1.0AI.109.0**, with Embedded Python **3.12.3**. Latest checked implementation: [`7cc3e48`](https://github.com/snowsadh/iris/commit/7cc3e489b4017979588f4613238ce157d8829f08).
 
 ## Repeat the release checks
 
@@ -33,7 +33,7 @@ A separate browser case collects 18 boxes once, redirects 15 to one accepted des
 
 ## Fresh installation
 
-Cloned the public branch at `f6459b6` into a separate directory. Reused only the already-loaded, licensed Docker image. Created new application and inbox volumes, used separate local ports and left `OPENAI_API_KEY` empty.
+Cloned public `main` at `7cc3e48` into a separate directory. Reused only the already-loaded, licensed Docker image. Created new application and inbox volumes, used separate local ports and left `OPENAI_API_KEY` empty. No personal preparation files were present in the clone.
 
 Setup, all 17 native groups, six demo-account sign-ins, dependency installation, four time checks and the full browser journey passed. No development database, private demo account file or provider key was copied. The 3 GB vendor archive was not downloaded again. Actual archive loading and build verification had already succeeded during the main installation.
 
