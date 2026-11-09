@@ -30,7 +30,7 @@ import {
 } from "../forms.js";
 import { readLocal, localValue } from "../time.js";
 
-export function foodState(record) {
+function foodState(record) {
   return record.state === "expired"
     ? ["Collection or holding window ended", "warning"]
     : record.state === "needs_details"

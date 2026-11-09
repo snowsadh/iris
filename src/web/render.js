@@ -85,7 +85,7 @@ export function facts(items) {
     ),
   );
 }
-export function drawing(kind) {
+function drawing(kind) {
   const namespace = "http://www.w3.org/2000/svg";
   const svg = document.createElementNS(namespace, "svg");
   svg.setAttribute("viewBox", "0 0 150 110");

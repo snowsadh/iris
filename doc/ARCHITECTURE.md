@@ -35,7 +35,8 @@ Paths below are relative to `src/Allfedo/` unless shown otherwise.
 | `CommandService.cls`, `RescueProcess.cls` | Native messages and trusted account handoff. |
 | `Rescue.cls` | Command identity, permissions, resource locks, transactions and ordinary agreements. |
 | `Facts.cls` | Confirmed partner places, food details and receiving needs. |
-| `Recovery.cls` | Physical reports, preserved trip tickets, promise changes and stock reconciliation. |
+| `Recovery.cls` | Physical reports, promise changes and stock reconciliation. |
+| `Trip.cls` | Current trip instructions, receiving consent and preserved collector agreements. |
 | `Redirect.cls` | Collector-reported problems, new receiving consent and linked onward collections. |
 | `Policy.cls`, `src/python/allfedo/` | Strict input parsing, proposal checks and physical-stock calculation. Python runs inside IRIS. |
 | `CaseTools.cls`, `Operation/Agent.cls` | Case-scoped tools and the bounded native AI Hub decision. |

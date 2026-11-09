@@ -70,7 +70,7 @@ ClassMethod Propose(actor As Allfedo.Record.Actor, data As %DynamicObject) As %D
     Set contact=##class(Allfedo.Rescue).Open("Allfedo.Record.Actor",target.ContactActorId)
     Do ##class(Allfedo.Rescue).Require($IsObject(contact)&&contact.Active&&(contact.NetworkId=actor.NetworkId)&&(contact.OrganizationId=target.OrganizationId)&&(contact.Role="recipient"),"Ask this receiving partner to reconfirm today's need with its current contact before sending an invitation.")
     Set earliest=$Select(target.ReceivingFrom>now:target.ReceivingFrom,1:now+1)
-    Do ##class(Allfedo.Recovery).AssertCompatible(offer,target,earliest,1)
+    Do ##class(Allfedo.Trip).AssertCompatible(offer,target,earliest,1)
     Do ##class(Allfedo.Rescue).Require((target.RequestedQuantity-target.HeldQuantity-target.CommittedQuantity)>=quantity,"Another promise already uses part of this partner's receiving need.")
     Set expiry=now+900
     If expiry>offer.HandlingUntil Set expiry=offer.HandlingUntil
@@ -92,16 +92,16 @@ ClassMethod Invitation(actor As Allfedo.Record.Actor, action As %String, data As
     Do ##class(Allfedo.Rescue).Require((child.NetworkId=actor.NetworkId)&&(child.State="held")&&(child.Revision=data.revision),"This redirect invitation changed or already ended.")
     If action="accept" {
         Do ##class(Allfedo.Rescue).Require((actor.Role="recipient")&&(actor.OrganizationId=need.OrganizationId)&&(now<child.HoldUntil),"Only this receiving partner can accept its current invitation.")
-        Set context=##class(Allfedo.Recovery).CurrentContext(child)
+        Set context=##class(Allfedo.Trip).CurrentContext(child)
         Do ##class(Allfedo.Rescue).Require(context."context_key"=data."context_key","The food or destination details changed. Review this invitation again.")
         Set quantity=+data.quantity
         Do ##class(Allfedo.Rescue).Require((quantity>0)&&(quantity<=child.HeldQuantity)&&(quantity<=..Available(parent,child.%Id())),"The collector's current food changed or another invitation already uses it.")
         Set issue=##class(Allfedo.Rescue).Open("Allfedo.Record.Source",parent.DestinationIssueSourceId),issueBody=##class(Allfedo.Rescue).Parse(issue.BodyJSON)
         Do ##class(Allfedo.Rescue).Require((oldNeed.State="availability_review")&&(oldNeed.SourceId=issueBody."need_source_id"),"The original partner updated its situation. Ask the coordinator to review this redirect.")
         Set earliest=$Select(need.ReceivingFrom>now:need.ReceivingFrom,1:now+1)
-        Do ##class(Allfedo.Recovery).AssertCompatible(offer,need,earliest,1)
-        Set acceptedContext=##class(Allfedo.Recovery).CurrentContext(child,quantity)
-        Set child.Quantity=quantity,child.OriginalPromiseQuantity=quantity,child.AcceptedByActorId=actor.%Id(),child.ConsentContextKey=##class(Allfedo.Recovery).RecipientKey(acceptedContext),child.TransferredInQuantity=quantity,child.HeldQuantity=0,child.Revision=child.Revision+1
+        Do ##class(Allfedo.Trip).AssertCompatible(offer,need,earliest,1)
+        Set acceptedContext=##class(Allfedo.Trip).CurrentContext(child,quantity)
+        Set child.Quantity=quantity,child.OriginalPromiseQuantity=quantity,child.AcceptedByActorId=actor.%Id(),child.ConsentContextKey=##class(Allfedo.Trip).RecipientKey(acceptedContext),child.TransferredInQuantity=quantity,child.HeldQuantity=0,child.Revision=child.Revision+1
         Set parent.TransferredOutQuantity=parent.TransferredOutQuantity+quantity,parent.Quantity=parent.Quantity-quantity,parent.Revision=parent.Revision+1
         If parent.Quantity<parent.ReceivedQuantity Set parent.Quantity=parent.ReceivedQuantity
         Do ##class(Allfedo.Recovery).RefreshCase(child),##class(Allfedo.Recovery).RefreshCase(parent),##class(Allfedo.Rescue).Save(child),##class(Allfedo.Rescue).Save(parent)
@@ -141,7 +141,7 @@ ClassMethod Confirm(actor As Allfedo.Record.Actor, data As %DynamicObject) As %D
     Do ##class(Allfedo.Rescue).Require('blocked,"An unrelated collection still occupies this collector or overlaps this delivery.")
     Do ##class(Allfedo.Rescue).Require(+data.capacity>=..RequiredCapacity(child),"Confirm capacity for all food still carried across the linked receiving promises.")
     Set child.ArrivalBy=arrival
-    Do ##class(Allfedo.Recovery).RecordAgreement(actor,child,data,1),##class(Allfedo.Recovery).RefreshCase(child)
+    Do ##class(Allfedo.Trip).RecordAgreement(actor,child,data,1),##class(Allfedo.Recovery).RefreshCase(child)
     Set child.Revision=child.Revision+1
     Do ##class(Allfedo.Rescue).Save(child),##class(Allfedo.Rescue).Event(actor,"redirect_trip_confirmed",child.%Id(),data)
     Quit {"ok":true,"allocation_id":(""_child.%Id()),"revision":(child.Revision),"state":(child.State),"trip_confirmed":true}

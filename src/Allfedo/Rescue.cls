@@ -229,13 +229,13 @@ ClassMethod AllocationChange(actor As Allfedo.Record.Actor, action As %String, d
         Do ..Require((actor.Role="recipient")&&(actor.OrganizationId=need.OrganizationId),"Only this receiving organization can accept.")
         Do ..Require((allocation.State="held")&&(now<allocation.HoldUntil),"This invitation is no longer open for acceptance.")
         Do ..Require((offer.State="open")&&(now<offer.CollectBy)&&(now<need.ConfirmedUntil),"The food or receiving facts need a fresh review.")
-        Set reviewed=##class(Allfedo.Recovery).CurrentContext(allocation)
+        Set reviewed=##class(Allfedo.Trip).CurrentContext(allocation)
         Do ..Require(reviewed."context_key"=data."context_key","The invitation details changed. Read the current food and destination before accepting.")
         Set quantity=+data.quantity, released=allocation.Quantity-quantity
         Do ..Require((quantity>0)&&(released>=0),"Accept a positive quantity up to the amount held.")
         // Capture consent before editing OREFs: CurrentContext freshly reloads authoritative records.
-        Set context=##class(Allfedo.Recovery).CurrentContext(allocation,quantity)
-        Set allocation.ConsentContextKey=##class(Allfedo.Recovery).RecipientKey(context),allocation.HeldQuantity=0,allocation.OriginalPromiseQuantity=quantity,allocation.StockCommittedQuantity=quantity
+        Set context=##class(Allfedo.Trip).CurrentContext(allocation,quantity)
+        Set allocation.ConsentContextKey=##class(Allfedo.Trip).RecipientKey(context),allocation.HeldQuantity=0,allocation.OriginalPromiseQuantity=quantity,allocation.StockCommittedQuantity=quantity
         Set offer.HeldQuantity=offer.HeldQuantity-allocation.Quantity, need.HeldQuantity=need.HeldQuantity-allocation.Quantity
         Set offer.CommittedQuantity=offer.CommittedQuantity+quantity, need.CommittedQuantity=need.CommittedQuantity+quantity
         Set allocation.Quantity=quantity, allocation.AcceptedByActorId=actor.%Id(), allocation.State="accepted"
@@ -264,7 +264,7 @@ ClassMethod AllocationChange(actor As Allfedo.Record.Actor, action As %String, d
         Do ..Require((+data.capacity>=allocation.Quantity)&&data."handling_accepted","Confirm enough transport capacity and acceptance of the food handling requirements.")
         Do ..CollectorAvailable(actor.%Id(),allocation.%Id(),pickup,arrival,now)
         Set allocation.CollectorActorId=actor.%Id(),allocation.PickupAt=pickup,allocation.ArrivalBy=arrival
-        Do ##class(Allfedo.Recovery).RecordAgreement(actor,allocation,data,1)
+        Do ##class(Allfedo.Trip).RecordAgreement(actor,allocation,data,1)
         Set allocation.State="ready"
     } Else {
         Do ..Require(0,"Unknown allocation action.")
@@ -370,12 +370,12 @@ ClassMethod Require(condition As %Boolean, message As %String)
     If 'condition Throw ##class(%Exception.General).%New("REJECTED",1000,,message)
 }
 
-/// IRIS reuses an already-open object in this process. Reload so a retained OREF cannot bypass revision checks.
 ClassMethod QueryOK(result As %SQL.StatementResult)
 {
     If result.%SQLCODE<0 Throw ##class(%Exception.SQL).%New(,result.%SQLCODE,,result.%Message)
 }
 
+/// IRIS reuses an already-open object in this process. Reload so a retained OREF cannot bypass revision checks.
 ClassMethod Open(className As %String, id As %String) As %Persistent
 {
     Set record=$ClassMethod(className,"%OpenId",id)

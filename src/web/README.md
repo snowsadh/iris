@@ -27,6 +27,7 @@ Use Node.js 20 or newer for these development checks. The served app needs no No
 ```bash
 npm ci
 npm run test:time
+npm run test:transport
 npx playwright install chromium
 npm run test:browser
 ```
