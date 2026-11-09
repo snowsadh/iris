@@ -49,10 +49,10 @@ Planning created no holds. A separate coordinator command then saved the reviewe
 
 Ordinary native and browser checks make no paid model call. Browser plans are manual. Provider-failure checks verify a visible failure, safe request replay, unchanged reservations and the checked manual fallback.
 
-## Limits and participant checks
+## Verification limits
 
 There have been no partner interviews, physical rescue trials or independent human usability sessions. Scripted physical reports describe fictional events. Screenshots are actual app screens with fictional data. The app does not certify food condition, infer travel time or prove how many people were fed.
 
 The local test inbox is not live partner messaging. Public hosting, real partner onboarding and operating procedures remain separate work. Only the tested x64 build is claimed; archive recognition for another accepted build is not a claim that its complete application journey ran.
 
-The [walkthrough](WALKTHROUGH.md) includes participant checks and recording directions. Contest listing approval, contest association, published articles and a demo video are separate deliverables; passing software checks does not establish their completion.
+The [sample journey](DEMO.md) explains how to explore the workflow. Scripted browser checks do not replace independent human usability testing or operational validation.

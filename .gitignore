@@ -2,6 +2,15 @@
 /IDEA.md
 /doc/IDEA.md
 
+# Local instructions, research and participant preparation.
+/AGENT.md
+/doc/INFO.md
+/doc/JOURNEY.md
+/doc/INTERFACE.md
+/doc/PRODUCT.md
+/doc/SUBMISSION.md
+/doc/WALKTHROUGH.md
+
 # Local credentials. Keep the empty setup example in Git.
 .env
 .env.*

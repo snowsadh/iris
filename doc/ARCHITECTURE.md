@@ -1,6 +1,6 @@
 # How Allfedo works
 
-This describes the implementation, rather than a proposed architecture. Native and browser checks have run on AI Hub Community `2027.1.0AI.109.0`, including changed destinations and linked rejected-food movements. The native human Workflow Engine is not used.
+Allfedo runs on AI Hub Community `2027.1.0AI.109.0`. Native and browser checks cover the integration, changed destinations and linked rejected-food movements.
 
 ## Follow one command
 
@@ -105,4 +105,4 @@ Code and data use separate databases. The login gateway can read code without re
 
 Docker volumes retain application and inbox data. The licensed image and private settings stay local. Only source folders are mounted into IRIS. Public deployment, real email, partner onboarding and handling procedures need the operating network's own configuration and validation. There are no partner interviews, physical rescue trials, automatic travel guarantees or certified food-safety decisions.
 
-Original source uses the MIT license. Native interfaces follow the [AI Hub guide](https://github.com/intersystems-community/ai-hub-eap/blob/1cca39afeb069413846c4c31196eed0b731f793a/ObjectScript_SDK_Guide.md) and were checked on build 109. Source from other contest entries was not reused. The rejected sketch's local data and visual design are not part of this implementation.
+Original source uses the MIT license. Native interfaces follow the [AI Hub guide](https://github.com/intersystems-community/ai-hub-eap/blob/1cca39afeb069413846c4c31196eed0b731f793a/ObjectScript_SDK_Guide.md) and were checked on build 109.
