@@ -106,6 +106,15 @@ Record project decisions, design tradeoffs, experiments, and lessons useful for 
 - **Evidence:** The pure stock projection passed its host checks, including fractional times, ambiguous simultaneous reports and returned food. Native recovery integration remains under development; these checks do not establish a working recovery screen or physical field outcome.
 - **Next:** Verify explicit promise changes, later physical reports and changed trip details through native commands and the actual browser.
 
+## 2026-11-09 — Test the stored facts, the screens and the outside send
+
+- **Built and verified:** Native recovery and the real browser preserve original promises, current agreements, actual handoffs, accepted food and known outcomes separately. A corrected physical report keeps its exact original time and superseded source. Receiving demand pauses for a fresh confirmation when a correction undermines an earlier settlement.
+- **Runtime lesson:** IRIS grouped string keys used their SQL collation, returning `HANDOFF` even though the stored kind was `handoff`. Exact lowercase comparisons skipped real saved quantities. Compilation and Python checks missed it; native assertions and the browser exposed it. Normalizing the grouped key fixed the totals without changing the physical reports.
+- **Query lesson:** An empty optional SQL parameter behaved as NULL, so an apparent empty-string condition hid whole-offer history. Separate whole-offer and specific-collection queries restored the actual history.
+- **Communication lesson:** Notification guards passing did not prove scheduled email delivery. Valid rows stayed queued while direct delivery worked. Releasing the dispatcher's claim lock before queuing removed the race with the delivery worker. An added check now waits for actual SMTP delivery and verifies the resulting Mailpit message, including Unicode text and the handling deadline.
+- **Agent evidence:** A second live native proposal used four tools across three model interactions. The SDK reported 2,743 prompt tokens, 278 completion tokens and 5,074 ms of model time. This is one measured synthetic case, not a quality or performance benchmark. The coordinator still sent separately after review.
+- **Next:** Complete in-transit destination changes, then repeat clean installation and finish the release material. No field rescue or contest acceptance is claimed.
+
 ## Entry pattern
 
 Use only fields that help:

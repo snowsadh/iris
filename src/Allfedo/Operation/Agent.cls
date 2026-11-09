@@ -33,8 +33,10 @@ Method Decide(request As Allfedo.Message.AgentRequest, Output response As Allfed
         Do ##class(Allfedo.Rescue).Require(actor.Role="coordinator","Only the coordinator can request a plan.")
         Set query=##class(%SQL.Statement).%ExecDirect(,"SELECT ID FROM Allfedo_Record.AgentRun WHERE ActorId=? AND RequestId=?",request.ActorId,request.RequestId)
         Do ##class(Allfedo.Rescue).QueryOK(query)
-        If query.%Next() {
-            Set run=##class(Allfedo.Record.AgentRun).%OpenId(query.ID)
+        Set found=query.%Next()
+        Do ##class(Allfedo.Rescue).QueryOK(query)
+        If found {
+            Set run=##class(Allfedo.Rescue).Open("Allfedo.Record.AgentRun",query.ID)
             Do ##class(Allfedo.Rescue).Require(run.OfferId=request.OfferId,"This request ID already belongs to another offer.")
             If run.ResultJSON'="" {
                 Set response.ResultJSON=run.ResultJSON
@@ -62,6 +64,8 @@ Method Decide(request As Allfedo.Message.AgentRequest, Output response As Allfed
             Set session=agent.CreateSession({"max_iterations":4,"max_tokens":1200})
             Set stage="native_chat"
             Set answer=agent.Chat(session,"Review this case and submit a safe recipient proposal or a specific request for review. The tools contain the authorized facts.")
+            // Missing optional statistics must not invalidate a food proposal.
+            Try { Set run.UsageJSON=..Usage(session,answer) } Catch usageError { Set run.UsageJSON={"source":"native_ai_hub","available":false}.%ToJSON() }
             Set stage="proposal_validation"
             Do tools.Guard()
             Set run.ToolAuditJSON=tools.Audit.%ToJSON(), run.ProposalJSON=tools.ProposalJSON
@@ -73,7 +77,6 @@ Method Decide(request As Allfedo.Message.AgentRequest, Output response As Allfed
                 Set result={"ok":true,"run_id":(""_run.%Id()),"state":"review_required","reason":(tools.ReviewReason)}
                 Set run.Outcome="review_required"
             }
-            // Usage may vary by Hub build; keep unknown usage unknown until its shape is verified.
             Set stage="result_save"
             Set run.FinishedAt=##class(Allfedo.Policy).Now(), run.ResultJSON=result.%ToJSON()
             Do ##class(Allfedo.Rescue).Save(run)
@@ -91,5 +94,30 @@ Method Decide(request As Allfedo.Message.AgentRequest, Output response As Allfed
     }
     Lock -^Allfedo.Lock(lockKey)
     Quit $$$OK
+}
+
+/// Keep session totals distinct from the final response. Exclude config, headers, and prompt content.
+ClassMethod Usage(session As %AI.Agent.Session, answer As %AI.LLM.Response) As %String [ Private ]
+{
+    Set result={"source":"native_ai_hub"}, totals={}, final={}, stats=session.GetStats()
+    If $IsObject(stats) {
+        For field="total_interactions","total_prompt_tokens","total_completion_tokens","total_tool_calls","total_llm_duration_ms" {
+            If stats.%IsDefined(field)&&(stats.%GetTypeOf(field)="number") {
+                Set value=stats.%Get(field)
+                If value>=0 Do totals.%Set(field,value)
+            }
+        }
+    }
+    If $IsObject(answer.Usage) {
+        For field="prompt_tokens","completion_tokens","input_tokens","output_tokens","total_tokens","cache_creation_input_tokens","cache_read_input_tokens" {
+            If answer.Usage.%IsDefined(field)&&(answer.Usage.%GetTypeOf(field)="number") {
+                Set value=answer.Usage.%Get(field)
+                If value>=0 Do final.%Set(field,value)
+            }
+        }
+    }
+    Set result.session=totals, result."last_response"=final
+    Do result.%Set("available",(totals.%Size()+final.%Size())>0,"boolean")
+    Quit result.%ToJSON()
 }
 }
