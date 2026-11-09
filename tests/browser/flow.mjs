@@ -775,7 +775,7 @@ try {
       exact: true,
     })
     .waitFor();
-  await kitchen.reload();
+  await kitchen.reload({ waitUntil: "domcontentloaded" });
   await kitchen
     .getByRole("heading", {
       name: "An earlier change needs checking",

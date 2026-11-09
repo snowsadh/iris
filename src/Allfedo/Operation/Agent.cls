@@ -1,6 +1,6 @@
 Include Ensemble
 
-/// Native AI Hub execution. The business process applies proposals through Rescue after this returns.
+/// Native AI Hub planning. Applying a proposal requires a separate coordinator command.
 Class Allfedo.Operation.Agent Extends Ens.BusinessOperation
 {
 Parameter INVOCATION = "Queue";

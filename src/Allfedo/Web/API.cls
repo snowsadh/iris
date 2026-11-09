@@ -273,7 +273,7 @@ ClassMethod Food(record As Allfedo.Record.Offer, evidence As %Boolean = 0, stock
 {
     Set state=##class(Allfedo.Facts).FoodState(record)
     Set available=record.CurrentQuantity-record.HeldQuantity-record.CommittedQuantity-record.CollectedQuantity
-    Set result={"id":(""_record.%Id()),"revision":(record.Revision),"organization_id":(record.OrganizationId),"description":(record.Description),"state":(record.State),"declared_quantity":(""_record.DeclaredQuantity),"current_quantity":(""_record.CurrentQuantity),"held_quantity":(""_record.HeldQuantity),"committed_quantity":(""_record.CommittedQuantity),"collected_quantity":(""_record.CollectedQuantity),"available_quantity":(""_$Select((available>0)&&(record.State="open"):available,1:0)),"shortfall_quantity":(""_$Select(available<0:-available,1:0)),"unit":(record.Unit),"ready_at":(..Time(record.ReadyAt)),"collect_by":(..Time(record.CollectBy)),"holding":(record.Holding),"present_allergens":(##class(Allfedo.Rescue).ParseArray(record.PresentAllergensJSON)),"assessed_allergens":(##class(Allfedo.Rescue).ParseArray(record.AssessedAllergensJSON))}
+    Set result={"id":(""_record.%Id()),"revision":(record.Revision),"organization_id":(record.OrganizationId),"description":(record.Description),"state":(state),"declared_quantity":(""_record.DeclaredQuantity),"current_quantity":(""_record.CurrentQuantity),"held_quantity":(""_record.HeldQuantity),"committed_quantity":(""_record.CommittedQuantity),"collected_quantity":(""_record.CollectedQuantity),"available_quantity":(""_$Select((available>0)&&(state="open"):available,1:0)),"shortfall_quantity":(""_$Select(available<0:-available,1:0)),"unit":(record.Unit),"ready_at":(..Time(record.ReadyAt)),"collect_by":(..Time(record.CollectBy)),"holding":(record.Holding),"present_allergens":(##class(Allfedo.Rescue).ParseArray(record.PresentAllergensJSON)),"assessed_allergens":(##class(Allfedo.Rescue).ParseArray(record.AssessedAllergensJSON))}
     If evidence {
         Set result."source_ids"=[(""_record.SourceId)]
         If (record.OriginalSourceId'="")&&(record.OriginalSourceId'=record.SourceId) Do result."source_ids".%Push(""_record.OriginalSourceId)
@@ -310,7 +310,6 @@ ClassMethod Food(record As Allfedo.Record.Offer, evidence As %Boolean = 0, stock
             If projection.%GetTypeOf("quarantined_quantity")="null" Do result.%Set("quarantined_quantity","","null")
         }
     }
-    Set result.state=state, result."available_quantity"=""_$Select((available>0)&&(state="open"):available,1:0)
     Set result.packaging=record.Packaging
     Do result.%Set("observed_quantity","","null")
     If record.ObservedQuantity'="" Set result."observed_quantity"=""_record.ObservedQuantity
@@ -327,12 +326,11 @@ ClassMethod Need(record As Allfedo.Record.Need, evidence As %Boolean = 0) As %Dy
 {
     Set state=##class(Allfedo.Facts).NeedState(record)
     Set remaining=record.RequestedQuantity-record.HeldQuantity-record.CommittedQuantity
-    Set result={"id":(""_record.%Id()),"revision":(record.Revision),"organization_id":(record.OrganizationId),"requested_quantity":(""_record.RequestedQuantity),"remaining_quantity":(""_$Select(remaining>0:remaining,1:0)),"held_quantity":(""_record.HeldQuantity),"committed_quantity":(""_record.CommittedQuantity),"unit":(record.Unit),"receiving_until":(..Time(record.ReceivingUntil)),"confirmed_until":(..Time(record.ConfirmedUntil)),"excluded_allergens":(##class(Allfedo.Rescue).ParseArray(record.ExcludedAllergensJSON)),"accepted_holding":(##class(Allfedo.Rescue).ParseArray(record.AcceptedHoldingJSON))}
+    Set result={"id":(""_record.%Id()),"revision":(record.Revision),"state":(state),"organization_id":(record.OrganizationId),"requested_quantity":(""_record.RequestedQuantity),"remaining_quantity":(""_$Select((remaining>0)&&(state="open"):remaining,1:0)),"held_quantity":(""_record.HeldQuantity),"committed_quantity":(""_record.CommittedQuantity),"unit":(record.Unit),"receiving_until":(..Time(record.ReceivingUntil)),"confirmed_until":(..Time(record.ConfirmedUntil)),"excluded_allergens":(##class(Allfedo.Rescue).ParseArray(record.ExcludedAllergensJSON)),"accepted_holding":(##class(Allfedo.Rescue).ParseArray(record.AcceptedHoldingJSON))}
     Do result.%Set("receiving_from","","null")
     If record.ReceivingFrom'="" Set result."receiving_from"=..Time(record.ReceivingFrom)
     Set result."contact_name"=..ContactName(record.NetworkId,record.OrganizationId,record.ContactActorId)
     If evidence Set result."source_ids"=[(record.SourceId)]
-    Set result.state=state, result."remaining_quantity"=""_$Select((remaining>0)&&(state="open"):remaining,1:0)
     Set result."shortfall_quantity"=""_$Select(remaining<0:-remaining,1:0)
     Do result.%Set("site","","null")
     Set site=..Site(record.NetworkId,record.OrganizationId)

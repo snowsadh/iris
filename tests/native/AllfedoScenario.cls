@@ -136,7 +136,7 @@ ClassMethod TestFacts() As %DynamicObject
     Set changedLoad=..Run(ids.kitchen,"report-changed-confirmed-load","confirm_food",confirmation)
     Do ..Check(changedLoad.ok&&(changedLoad.state="review_required"),"Changing an already confirmed load must pause the earlier pickup agreement.")
     Set pausedCase=##class(Allfedo.Rescue).Open("Allfedo.Record.Allocation",allocationId)
-    Do ..Check(##class(Allfedo.Recovery).TripChanged(pausedCase),"A confirmed collector must not inherit changed carrying instructions without review.")
+    Do ..Check(##class(Allfedo.Trip).TripChanged(pausedCase),"A confirmed collector must not inherit changed carrying instructions without review.")
     Set evidenceSnapshot=##class(Allfedo.Rescue).Snapshot(ids.coordinator,offerId)
     Do ..Check(evidenceSnapshot.offer."source_ids".%Size()=2,"Later food confirmations must preserve the original quantity evidence.")
     Set need=##class(Allfedo.Rescue).Open("Allfedo.Record.Need",ids.need)
@@ -149,7 +149,7 @@ ClassMethod TestFacts() As %DynamicObject
     Set otherPlan=..Plan(ids.coordinator,ids.offer,ids."second_need","5"), other=..Run(ids.coordinator,"unaffected-partner-still-works","apply_plan",otherPlan)
     Do ..Check(other.ok,"One partner's changed need must not invalidate the whole network snapshot.")
     Set changedCase=##class(Allfedo.Rescue).Open("Allfedo.Record.Allocation",allocationId)
-    Set changedContext=##class(Allfedo.Recovery).CurrentContext(changedCase)
+    Set changedContext=##class(Allfedo.Trip).CurrentContext(changedCase)
     Set rejectedReagreement=..Run(ids.collector,"cannot-bypass-reduced-need","acknowledge_trip",{"allocation_id":(allocationId),"revision":4,"context_key":(..ContextKey(allocationId)),"capacity":"10","handling_accepted":true,"arrival_by":(##class(Allfedo.Policy).ISO(now+1800))})
     Do ..Check('rejectedReagreement.ok&&(rejectedReagreement.error.message["receiving need"),"A collector cannot bypass a reduced receiving need by acknowledging the trip again.")
     Set currentNeed=##class(Allfedo.Rescue).Open("Allfedo.Record.Need",ids.need)
@@ -302,7 +302,7 @@ ClassMethod TestRedirect() As %DynamicObject
     Do ..Check((food.CollectedQuantity=20)&&(food.CurrentQuantity-food.CollectedQuantity=20),"Receipt at a redirected site cannot produce another kitchen collection or free returned food.")
     Set ownLocation="Collector is now at the dispatch office after this receiving stop"
     Set childIssue=..Run(ids.collector,"onward-site-now-closed","record_destination_issue",{"allocation_id":(childId),"revision":(received.revision),"quantity_in_custody":"0","current_location":(ownLocation),"handling_maintained":true,"note":"This receiving site has closed after accepting its food; no further arrivals are possible."})
-    Set child=##class(Allfedo.Rescue).Open("Allfedo.Record.Allocation",childId),current=##class(Allfedo.Recovery).CurrentContext(child),ticket=##class(Allfedo.Rescue).Parse(child.OriginalTripJSON)
+    Set child=##class(Allfedo.Rescue).Open("Allfedo.Record.Allocation",childId),current=##class(Allfedo.Trip).CurrentContext(child),ticket=##class(Allfedo.Rescue).Parse(child.OriginalTripJSON)
     Do ..Check(childIssue.ok&&(current.details.custody.location=ownLocation)&&(current.details.pickup.%ToJSON()=ticket.details.pickup.%ToJSON()),"An onward case's newer custody report must replace its parent's old location while preserving the immutable kitchen origin.")
     Set inactiveTarget=##class(Allfedo.Rescue).Open("Allfedo.Record.Actor",ids."third_recipient"),inactiveTarget.Active=0
     Do ##class(Allfedo.Rescue).Save(inactiveTarget)
@@ -628,7 +628,7 @@ ClassMethod Actor(network As %String, role As %String, organization As %String, 
 
 ClassMethod ContextKey(allocationId As %String) As %String
 {
-    Set allocation=##class(Allfedo.Rescue).Open("Allfedo.Record.Allocation",allocationId),context=##class(Allfedo.Recovery).CurrentContext(allocation)
+    Set allocation=##class(Allfedo.Rescue).Open("Allfedo.Record.Allocation",allocationId),context=##class(Allfedo.Trip).CurrentContext(allocation)
     Quit context."context_key"
 }
 

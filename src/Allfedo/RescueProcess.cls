@@ -1,6 +1,6 @@
 Include Ensemble
 
-/// Native business-message chain: partner command -> Hub operation -> guarded domain action.
+/// Routes planning to AI Hub and separate partner commands to guarded rescue changes.
 Class Allfedo.RescueProcess Extends Ens.BusinessProcess
 {
 Method OnRequest(request As Allfedo.Message.CommandRequest, Output response As Allfedo.Message.CommandResponse) As %Status

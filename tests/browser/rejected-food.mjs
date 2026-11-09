@@ -245,7 +245,7 @@ export async function rejectedFoodJourney(ui) {
       exact: true,
     })
     .waitFor();
-  await recipient2.reload();
+  await recipient2.reload({ waitUntil: "domcontentloaded" });
   await recipient2
     .getByRole("heading", {
       name: "An earlier change needs checking",

@@ -110,7 +110,7 @@ ClassMethod ObsoleteReason(item As Allfedo.Record.Outbox, allocation As Allfedo.
 /// Plain text keeps instructions useful in every inbox. The signed-in case owns the latest state.
 ClassMethod Text(item As Allfedo.Record.Outbox, allocation As Allfedo.Record.Allocation) As %String
 {
-    Set context=##class(Allfedo.Recovery).CurrentContext(allocation),details=context.details,newline=$Char(13,10),body=item.Body
+    Set context=##class(Allfedo.Trip).CurrentContext(allocation),details=context.details,newline=$Char(13,10),body=item.Body
     Set pickup=details.pickup,destination=details.destination,food=details.food,inTransit=details.%Get("in_transit",0)
     If (item.Purpose="invitation")||(item.Purpose="redirect_invitation") {
         Set body="Please accept or decline this food invitation before " _ ..At(##class(Allfedo.Policy).ISO(allocation.HoldUntil),destination."time_zone") _ ". This is a temporary hold"
