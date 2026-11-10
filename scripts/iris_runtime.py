@@ -238,6 +238,8 @@ Halt
 If 'sc Do $SYSTEM.Status.DisplayError(sc)
 If sc Set sc=##class(Allfedo.Web.Setup).Configure()
 If 'sc Do $SYSTEM.Status.DisplayError(sc)
+If sc Set sc=##class(Ens.Director).SetAutoStart("Allfedo.Production")
+If 'sc Do $SYSTEM.Status.DisplayError(sc)
 If sc Set sc=##class(Ens.Director).StartProduction("Allfedo.Production")
 If 'sc Do $SYSTEM.Status.DisplayError(sc)
 Write !,"ALLFEDO_COMPILED=",(sc=1),!
@@ -257,7 +259,9 @@ def test_application() -> None:
     for filename in ("AllfedoScenario.cls", "AllfedoWebScenario.cls", "AllfedoAgentScenario.cls", "AllfedoMailScenario.cls"):
         subprocess.run(_compose_command("cp", str(PROJECT / "tests" / "native" / filename),
                                         f"iris:/tmp/{filename}"), cwd=PROJECT, check=True)
-    commands = '''Set sc=$SYSTEM.OBJ.Load("/tmp/AllfedoScenario.cls","ck")
+    commands = '''Set sc=##class(Ens.Director).IsProductionRunning(.production)
+If 'sc||(production'="Allfedo.Production") { Set sc=0 Write !,"Start Allfedo with --setup before running native checks.",! }
+If sc Set sc=$SYSTEM.OBJ.Load("/tmp/AllfedoScenario.cls","ck")
 If 'sc Do $SYSTEM.Status.DisplayError(sc)
 If sc Set sc=$SYSTEM.OBJ.Load("/tmp/AllfedoWebScenario.cls","ck")
 If 'sc Do $SYSTEM.Status.DisplayError(sc)
