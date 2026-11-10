@@ -25,7 +25,7 @@ Method OnRequest(request As Allfedo.Message.CommandRequest, Output response As A
         Set body=##class(Allfedo.Rescue).Parse(request.PayloadJSON)
         Do ##class(Allfedo.Rescue).Require((body.%Size()=1)&&body.%IsDefined("offer_id"),"Planning needs only offer_id.")
         Set agentRequest=##class(Allfedo.Message.AgentRequest).%New()
-        Set agentRequest.ActorId=request.ActorId, agentRequest.RequestId=request.RequestId, agentRequest.OfferId=body."offer_id"
+        Set agentRequest.ActorId=request.ActorId, agentRequest.RequestId=request.RequestId, agentRequest.OfferId=body."offer_id", agentRequest.AISettingsRef=request.AISettingsRef
         Set status=..SendRequestSync("Allfedo.Agent",agentRequest,.agentResponse,100)
         If $$$ISERR(status) Quit status
         // Planning is a suggestion. The coordinator reviews it and sends a separate apply_plan command.

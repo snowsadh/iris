@@ -94,6 +94,20 @@ ClassMethod CheckCleanupCollision(username As %String, password As %String) As %
     Quit 1
 }
 
+/// Test-only metadata lookup. Never reads the wallet's secret value.
+ClassMethod OwnedSettingsReferences(actorId As %String) As %String
+{
+    Set references=[],reference=""
+    For {
+        Set reference=$Order(^Allfedo.AISettings(reference)) Quit:reference=""
+        Set value=$Get(^Allfedo.AISettings(reference))
+        Continue:value=""
+        Set metadata=##class(Allfedo.Rescue).Parse(value)
+        If metadata."actor_id"=actorId Do references.%Push(reference)
+    }
+    Quit references.%ToJSON()
+}
+
 ClassMethod Run(baseURL As %String = "http://127.0.0.1:52773/allfedo/api", scenario As %String = "core") As %String [ Language = python ]
 {
     import base64
@@ -348,6 +362,17 @@ ClassMethod Run(baseURL As %String = "http://127.0.0.1:52773/allfedo/api", scena
         status, body = request("/session", opener=opener)
         require(status == 200 and body.get("user", {}).get("id") == str(fixture["coordinator"]), "Native session cookie preserves the authenticated account")
         require(not any(key in body for key in ("password", "token", "cookie", "session_id")), "Session response contains no authentication secrets")
+        coordinator_id = str(fixture["coordinator"])
+        require(json.loads(iris.cls("AllfedoWebScenario").OwnedSettingsReferences(coordinator_id)) == [], "Fresh HTTP coordinator has no personal AI settings")
+        ai_settings = {"provider": "openai", "model": "gpt-4.1-mini", "api_key": "allfedo-http-test-not-a-real-key"}
+        status, body = request("/ai-settings", command=ai_settings, opener=opener)
+        require(status == 200 and body.get("source") == "personal" and ai_settings["api_key"] not in json.dumps(body), "HTTP settings save selects a personal connection without returning its key")
+        references = json.loads(iris.cls("AllfedoWebScenario").OwnedSettingsReferences(coordinator_id))
+        require(len(references) == 1 and iris.cls("%Wallet.Secret").Exists(references[0]), "HTTP settings save creates one owned metadata reference and wallet entry")
+        removed_reference = references[0]
+        status, body = request("/ai-settings", command={}, opener=opener)
+        require(status == 200 and body.get("source") == "default", "HTTP settings removal explicitly selects the default connection")
+        require(json.loads(iris.cls("AllfedoWebScenario").OwnedSettingsReferences(coordinator_id)) == [] and not iris.cls("%Wallet.Secret").Exists(removed_reference), "Selecting the default deletes both owned metadata and its wallet entry")
         status, body = request("/offers", "kitchen")
         require(status == 200 and {row["id"] for row in body["records"]} == {str(fixture["offer"])}, "Kitchen list is limited to its own organization")
         status, body = request("/offers/" + str(fixture["second_offer"]), "kitchen")
@@ -503,8 +528,14 @@ ClassMethod Run(baseURL As %String = "http://127.0.0.1:52773/allfedo/api", scena
         status, body = request(allocation_path, "recipient")
         final_case = body["record"]
         require(final_case["quantity"] == "15" and final_case["recovery"]["stock_committed_quantity"] == "15" and final_case["recovery"]["original_promise_quantity"] == "20", "Read model preserves the original promise and exposes the actual remaining stock commitment")
+        status, body = request("/ai-settings", command=ai_settings, opener=opener)
+        require(status == 200 and body.get("source") == "personal", "Coordinator can save another personal connection before signing out")
+        references = json.loads(iris.cls("AllfedoWebScenario").OwnedSettingsReferences(coordinator_id))
+        require(len(references) == 1 and iris.cls("%Wallet.Secret").Exists(references[0]), "Personal connection exists in the native wallet immediately before logout")
+        logout_reference = references[0]
         status, body = request("/logout", command={}, opener=opener)
         require(status == 200 and body.get("signed_out"), "Logout ends the native authenticated session")
+        require(json.loads(iris.cls("AllfedoWebScenario").OwnedSettingsReferences(coordinator_id)) == [] and not iris.cls("%Wallet.Secret").Exists(logout_reference), "Logout deletes both the session's owned metadata and wallet entry")
         status, body = request("/session", opener=opener)
         require(status == 401 and "user" not in body, "Ended session cannot read data with its old cookie")
 
@@ -533,6 +564,10 @@ ClassMethod Run(baseURL As %String = "http://127.0.0.1:52773/allfedo/api", scena
         require(status == 200 and body.get("user", {}).get("role") == "kitchen", "Native login form authenticates the shared API session without JavaScript passwords")
         return json.dumps({"ok": True, "checks": checks, "count": len(checks), "fixture_network": fixture["network"], "scenario": scenario, "users_removed": True})
     finally:
+        if fixture and scenario == "core":
+            actor = iris.cls("Allfedo.Rescue").Actor(str(fixture["coordinator"]))
+            for reference in json.loads(iris.cls("AllfedoWebScenario").OwnedSettingsReferences(str(fixture["coordinator"]))):
+                iris.cls("Allfedo.AISettings").Clear(actor, reference)
         iris.cls("AllfedoWebScenario").RemoveUsers(credentials)
 }
 }

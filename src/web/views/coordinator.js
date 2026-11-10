@@ -632,7 +632,9 @@ function planEvidence(run) {
       "div",
       { className: "panel" },
       facts([
-        ["Model used", run.model || "Not recorded"],
+        ["Configured model", run.model || "Not recorded"],
+        ["Provider", run.provider || "Not recorded"],
+        ["Connection", run.credential_source === "personal" ? "Personal key" : run.credential_source === "default" ? "Default connection" : "Not recorded"],
         ["Started", time(run.started_at, "UTC")],
         [
           "Finished",

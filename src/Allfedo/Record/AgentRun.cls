@@ -7,7 +7,7 @@ Property RequestId As %String(MAXLEN = 100) [ Required ];
 Property ResultJSON As %String(MAXLEN = 100000);
 Property StartedAt As %BigInt [ Required ];
 Property FinishedAt As %BigInt;
-Property Model As %String;
+Property Model As %String(MAXLEN = 150);
 Property SnapshotJSON As %String(MAXLEN = 100000) [ Required ];
 Property ProposalJSON As %String(MAXLEN = 100000);
 Property ToolAuditJSON As %String(MAXLEN = 100000);
@@ -16,6 +16,8 @@ Property Outcome As %String;
 /// Sanitized native class/code and fixed execution stage; never provider text or configuration.
 Property ErrorCategory As %String(MAXLEN = 200);
 Property ErrorLocation As %String(MAXLEN = 200);
+Property Provider As %String;
+Property CredentialSource As %String;
 Index RetryKey On (ActorId, RequestId) [ Unique ];
 Index ByOffer On (OfferId, StartedAt);
 
@@ -69,6 +71,12 @@ Storage Default
 </Value>
 <Value name="16">
 <Value>ErrorLocation</Value>
+</Value>
+<Value name="17">
+<Value>Provider</Value>
+</Value>
+<Value name="18">
+<Value>CredentialSource</Value>
 </Value>
 </Data>
 <DataLocation>^Allfedo.Record.AgentRunD</DataLocation>

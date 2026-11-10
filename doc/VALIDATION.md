@@ -1,6 +1,6 @@
 # What has been checked
 
-Checked 9 November 2026 on AI Hub Community **2027.1.0AI.109.0**, with Embedded Python **3.12.3**. Native release baseline: [`7cc3e48`](https://github.com/snowsadh/iris/commit/7cc3e489b4017979588f4613238ce157d8829f08). The later demo launcher and report-time fix described below were checked on the same runtime; the complete browser journey passed again.
+Checked 9–10 November 2026 on AI Hub Community **2027.1.0AI.109.0**, with Embedded Python **3.12.3**. The original native release baseline was [`7cc3e48`](https://github.com/snowsadh/iris/commit/7cc3e489b4017979588f4613238ce157d8829f08). Later trip cleanup, provider settings and setup changes were checked on the same runtime. Results below distinguish current checks from the earlier fresh installation.
 
 ## Repeat the release checks
 
@@ -15,19 +15,23 @@ npx playwright install chromium
 npm run test:time
 npm run test:transport
 npm run test:browser
+python3 scripts/demo.py
+npm run test:settings
+npm run test:demo
 ```
 
 | Check | Observed result |
 |---|---|
-| Host Python | 46 passed: proposal rules, stock projection and installer contracts. |
+| Host Python | 50 passed: proposal rules, stock projection, installer contracts and private setup settings. |
 | Browser time handling | Four passed, including another device time zone, clock changes and exact source-time preservation. |
 | Browser report transport | One passed: fresh server time for a just-now report, exact retry after a lost response, and unchanged explicit event time. |
-| Native integration | All 17 runner groups passed on the real image. |
-| Signed-in web requests | Core 65, onward delivery 32 and rejected-food follow-up 29 checks passed. These are included in the native runner. |
+| Native integration | All 18 runner groups passed on the real image. |
+| Signed-in web requests | Core, onward delivery and rejected-food follow-up scenarios passed, including actual wallet deletion after default selection and logout. These are included in the native runner. |
 | Browser journey | Five independent accounts covering four roles and two receiving teams passed. Temporary logins were removed afterward. |
+| Settings browser | Real wallet save with a fake key, session isolation, role checks, removal and widths from 320 to 1440 pixels passed. No key appeared in the read response or browser storage. |
 | Local email | Actual scheduled SMTP delivery reached Mailpit, including Unicode and the handling deadline. |
 
-The native groups cover commands, arithmetic, two-process capacity races, temporary lock recovery, partner facts, persistent workers, changed promises, onward delivery, rejected-food movements, unavailable provider, notification guards and signed-in web requests. A passing host test alone does not establish these runtime results.
+The native groups cover commands, arithmetic, two-process capacity races, temporary lock recovery, partner facts, persistent workers, changed promises, onward delivery, rejected-food movements, provider settings and failure, notification guards and signed-in web requests. Settings checks use fake keys: ownership, expiry, native provider construction, the shared default allowance, personal-key bypass and the 150-character model boundary. A passing host test alone does not establish these runtime results.
 
 The browser records a real 35-box invitation, 30 accepted, 28 handed over and 27 received. It preserves the original promise, requires current kitchen and receiving confirmations, tests physical corrections, and recovers a lost response after reload without duplicating a saved action.
 
@@ -47,13 +51,19 @@ An earlier isolated SMTP-outage check stopped the test inbox. Delivery remained 
 
 A later branch switch replaced bind-mounted source folders. Setup previously accepted the empty mounted tree while compiled native code remained available. The installer now compares mounted runtime-file hashes with the checkout before stopping workers or compiling. The actual stale mount was refused. Recreating the container preserved its data volume; all 17 native groups and the full browser journey then passed with the updated wordmark. Browser checks explicitly decode the authenticated brand image.
 
+On 10 November, a Docker restart revealed that the healthy IRIS server had not resumed Allfedo’s Production. Setup now enables native Production auto-start. A real container restart resumed it automatically; the complete native checks then passed. This is separate from the vendor startup warning below.
+
 ## Actual agent evidence
 
-Two successful paid native planning decisions ran during development. The later saved run, number 20, used **gpt-4.1-mini** through the IRIS Production and native AI Hub. Run numbers include test fixtures and failures; they are not a count of paid calls.
+Four successful paid native planning decisions ran during development. The earlier saved run, number 20, used **gpt-4.1-mini** through the IRIS Production and native AI Hub. Run numbers include test fixtures and failures; they are not a count of paid calls.
 
 That run read the offer, current needs and collection facts, then submitted a proposal: four tool calls across three model interactions. The native SDK reported **2,743 prompt tokens, 278 completion tokens and 5,074 ms of model time** for the session. Its final response separately reported 1,370 prompt and 74 completion tokens. These are different scopes; do not add them together.
 
 Planning created no holds. A separate coordinator command then saved the reviewed invitations. Model credentials remained server-side. No model was trained or fine-tuned. This synthetic case proves the native integration; it does not measure planning quality, general accuracy or expected performance. No exact monetary cost was recorded.
+
+Two later browser-driven decisions, saved runs **41 and 42**, used OpenAI `gpt-4.1-mini` through personal and default connections respectively. The personal key was entered through the real Settings form; both decisions reached `SubmitProposal` through the Production and native AI Hub, saved the selected connection source and created no holds. OpenRouter and Gemini factories were constructed without a request; live planning with those providers is not verified.
+
+To repeat the two paid browser decisions deliberately, configure a local key and run `python3 scripts/browser_test.py --live-ai`. This creates separate test accounts, runs the ordinary journey, then requests personal and default plans. It is never included in `npm run test:browser`.
 
 Ordinary native and browser checks make no paid model call. Browser plans are manual. Provider-failure checks verify a visible failure, safe request replay, unchanged reservations and the checked manual fallback.
 

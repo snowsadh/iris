@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import argparse
 import os
 from pathlib import Path
 import secrets
@@ -25,6 +26,9 @@ def terminal(script: str, accounts: dict) -> str:
 
 
 def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--live-ai", action="store_true", help="Also make paid planning calls with the local key, through personal and default connections")
+    arguments = parser.parse_args()
     _verify_selected_runtime()
     for filename in ("AllfedoScenario.cls", "AllfedoWebScenario.cls", "AllfedoBrowserScenario.cls"):
         subprocess.run(_compose_command("cp", str(PROJECT / "tests" / "native" / filename),
@@ -56,6 +60,9 @@ def main() -> None:
             environment = dict(os.environ, ALLFEDO_BROWSER_ACCOUNTS=str(path))
             subprocess.run(["node", str(PROJECT / "tests" / "browser" / "flow.mjs")],
                            cwd=PROJECT, env=environment, check=True, timeout=600)
+            if arguments.live_ai:
+                subprocess.run(["node", str(PROJECT / "tests" / "browser" / "live-planning.mjs")],
+                               cwd=PROJECT, env=environment, check=True, timeout=240)
     finally:
         terminal('Do ##class(AllfedoBrowserScenario).RemoveFromEnvironment()\nWrite !,"ALLFEDO_BROWSER_OK=1",!', accounts)
         print("Temporary browser logins removed. Saved test records remain in their isolated network.")

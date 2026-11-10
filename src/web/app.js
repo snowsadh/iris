@@ -11,6 +11,7 @@ import {
 } from "./render.js";
 import { redirectPage } from "./views/redirect.js";
 import { sitePage } from "./views/site.js";
+import { settingsPage } from "./views/settings.js";
 import { offerList, offerEntry, offerDetail } from "./views/kitchen.js";
 import { needList, needEntry, needDetail } from "./views/receiving.js";
 import { collectionList, collectionDetail } from "./views/collections.js";
@@ -62,6 +63,7 @@ function navigation(path) {
           ["Food offers", "/offers"],
           ["Receiving needs", "/needs"],
           ["Collections", "/allocations"],
+          ["Settings", "/settings"],
         ]
       : user.role === "kitchen"
         ? [
@@ -388,7 +390,18 @@ async function load(options = {}) {
     const match = path.match(
       /^\/(offers|needs|allocations)\/(\d+)(?:\/(edit|plan|redirect))?$/,
     );
-    if (path === "/site") {
+    if (path === "/settings") {
+      requireRole(["coordinator"]);
+      ctx.settings = await api.list("ai-settings");
+      ctx.saveAISettings = async (settings) => {
+        await api.configureAI(settings);
+        flash = Object.keys(settings).length
+          ? "Your personal AI connection is saved for this session."
+          : "Your personal key has been removed. Default AI settings are selected.";
+        await load();
+      };
+      view = settingsPage;
+    } else if (path === "/site") {
       requireRole(["kitchen", "recipient"]);
       view = sitePage;
     } else if (path === "/offers/new") {

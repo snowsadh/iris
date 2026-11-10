@@ -279,6 +279,7 @@ If sc { Set result=##class(AllfedoScenario).TestRecovery() Write !,"ALLFEDO_RECO
 If sc { Set result=##class(AllfedoScenario).TestRedirect() Write !,"ALLFEDO_REDIRECT=",result.%ToJSON(),! }
 If sc { Set result=##class(AllfedoScenario).TestRejectedTransfer() Write !,"ALLFEDO_REJECTED=",result.%ToJSON(),! }
 If sc { Set result=##class(AllfedoAgentScenario).TestUnavailable() Write !,"ALLFEDO_AGENT_FAILURE=",result.%ToJSON(),! }
+If sc { Set result=##class(AllfedoAgentScenario).TestSettings() Write !,"ALLFEDO_AI_SETTINGS=",result.%ToJSON(),! }
 If sc { Set result=##class(AllfedoMailScenario).Run() Write !,"ALLFEDO_MAIL=",result.%ToJSON(),! }
 If sc { Set result=##class(AllfedoMailScenario).TestRedirectNotices() Write !,"ALLFEDO_MAIL_REDIRECT=",result.%ToJSON(),! }
 If sc { Set result=##class(AllfedoMailScenario).TestStaleRedirectNotices() Write !,"ALLFEDO_MAIL_STALE=",result.%ToJSON(),! }
@@ -289,11 +290,11 @@ If sc Write !,"ALLFEDO_HTTP_REJECTED=",##class(AllfedoWebScenario).Run("http://1
 Halt
 '''
     # The direct agent-failure check cannot contact a provider. Existing Production workers keep their own environment.
-    result = subprocess.run(_compose_command("exec", "-T", "--env", "OPENAI_API_KEY=", "iris", "iris", "session", "IRIS", "-U", "ALLFEDO"),
+    result = subprocess.run(_compose_command("exec", "-T", "--env", "OPENAI_API_KEY=", "--env", "AI_API_KEY=", "--env", "AI_DAILY_LIMIT=1", "iris", "iris", "session", "IRIS", "-U", "ALLFEDO"),
                             cwd=PROJECT, input=commands, text=True, capture_output=True, timeout=180)
     names = (
         "COMMANDS", "ARITHMETIC", "RACES", "BUSY", "FACTS", "WORKERS", "RECOVERY", "REDIRECT",
-        "REJECTED", "AGENT_FAILURE", "MAIL", "MAIL_REDIRECT", "MAIL_STALE", "SMTP",
+        "REJECTED", "AGENT_FAILURE", "AI_SETTINGS", "MAIL", "MAIL_REDIRECT", "MAIL_STALE", "SMTP",
         "HTTP", "HTTP_REDIRECT", "HTTP_REJECTED",
     )
     checks = {}
@@ -309,7 +310,7 @@ Halt
     if result.returncode != 0 or _terminal_error(result.stdout) or any(checks.get(name, {}).get("ok") is not True for name in names):
         print(result.stdout, end="")
         raise RuntimeError("Native command or shared-capacity checks did not pass.")
-    print("Native commands, shared capacity, facts, recovery, provider failure, mail rules, retries, worker cleanup, and signed-in HTTP checks passed. No model call was made.")
+    print("Native commands, shared capacity, facts, recovery, provider settings and failure, mail rules, retries, worker cleanup, and signed-in HTTP checks passed. No model call was made.")
 
 
 def main() -> None:
