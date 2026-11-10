@@ -28,7 +28,7 @@ python3 scripts/iris_runtime.py /path/to/iris-community-2027.1.0AI.109.0-docker.
 
 The installer checks the archive's build and platform, loads and tags it locally, starts the containers, then checks the actual native version and AI Hub classes. An ignored `compose.override.yaml` selects the image and a separate data volume per build. A short initialization step prepares volume ownership; IRIS runs as its normal user.
 
-Setup creates separate code and data databases in the `ALLFEDO` namespace, compiles source, configures signed-in web routes and starts `Allfedo.Production`. It creates no partner accounts and makes no model call. Only ObjectScript, Python and browser source folders are mounted read-only; private files are not mounted.
+Setup creates separate code and data databases in the `ALLFEDO` namespace, compiles source, configures signed-in web routes and starts `Allfedo.Production`. It also enables native auto-start so the Production resumes after IRIS restarts. This lower-level step creates no partner accounts and makes no model call. Only ObjectScript, Python and browser source folders are mounted read-only; private files are not mounted.
 
 ## AI connections
 

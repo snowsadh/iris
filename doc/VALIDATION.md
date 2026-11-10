@@ -1,6 +1,6 @@
 # What has been checked
 
-Checked 9–10 November 2026 on AI Hub Community **2027.1.0AI.109.0**, with Embedded Python **3.12.3**. The original native release baseline was [`7cc3e48`](https://github.com/snowsadh/iris/commit/7cc3e489b4017979588f4613238ce157d8829f08). Later trip cleanup, provider settings and setup changes were checked on the same runtime. Results below distinguish current checks from the earlier fresh installation.
+Checked 9–10 November 2026 on AI Hub Community **2027.1.0AI.109.0**, with Embedded Python **3.12.3**. Provider settings and one-command setup were checked from clean source at [`2994291`](https://github.com/snowsadh/iris/commit/2994291cb6f1a072ee5c157bf0371826863d8f74). Earlier baseline checks are identified separately below.
 
 ## Repeat the release checks
 
@@ -43,9 +43,11 @@ A separate browser case collects 18 boxes once, redirects 15 to one accepted des
 
 ## Fresh installation
 
-Cloned public `main` at `7cc3e48` into a separate directory. Reused only the already-loaded, licensed Docker image. Created new application and inbox volumes, used separate local ports and left `OPENAI_API_KEY` empty. No personal preparation files were present in the clone.
+On 10 November, exported only tracked source at `2994291` into a separate directory. Reused the licensed local image with an isolated Compose project, new application and inbox volumes, and separate ports. No private files or provider key were copied. Ran `python3 scripts/start.py` and selected manual planning with an empty key.
 
-Setup, all 17 native groups, six demo-account sign-ins, dependency installation, four time checks and the full browser journey passed. No development database, private demo account file or provider key was copied. The 3 GB vendor archive was not downloaded again. Actual archive loading and build verification had already succeeded during the main installation.
+Setup, all 18 native groups, dependency installation, the complete browser journey, Settings checks and six-account demo checks passed. Running setup again with closed input needed no prompts, preserved the generated credentials and saved offer/collection counts, and left all six sign-ins working after container recreation. Both generated private files had owner-only permissions. No provider call was made.
+
+The earlier public baseline `7cc3e48` also passed a fresh installation, all 17 then-existing native groups, demo sign-ins, dependency installation, four time checks and the full browser journey. Both installations reused the licensed image; the 3 GB vendor archive was not downloaded again. Actual archive loading and build verification had succeeded during the main installation.
 
 An earlier isolated SMTP-outage check stopped the test inbox. Delivery remained pending after attempt one, then succeeded on attempt two after the inbox restarted. This establishes bounded retry behavior for that case, not guaranteed external email delivery.
 
