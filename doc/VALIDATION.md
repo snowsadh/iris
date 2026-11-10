@@ -63,11 +63,19 @@ That run read the offer, current needs and collection facts, then submitted a pr
 
 Planning created no holds. A separate coordinator command then saved the reviewed invitations. Model credentials remained server-side. No model was trained or fine-tuned. This synthetic case proves the native integration; it does not measure planning quality, general accuracy or expected performance. No exact monetary cost was recorded.
 
-Two later browser-driven decisions, saved runs **41 and 42**, used OpenAI `gpt-4.1-mini` through personal and default connections respectively. The personal key was entered through the real Settings form; both decisions reached `SubmitProposal` through the Production and native AI Hub, saved the selected connection source and created no holds. OpenRouter and Gemini factories were constructed without a request; live planning with those providers is not verified.
+Two later browser-driven decisions, saved runs **41 and 42**, used OpenAI `gpt-4.1-mini` through personal and default connections respectively. The personal key was entered through the real Settings form; both decisions reached `SubmitProposal` through the Production and native AI Hub, saved the selected connection source and created no holds. Live planning with OpenRouter and Gemini is not verified.
 
 To repeat the two paid browser decisions deliberately, configure a local key and run `python3 scripts/browser_test.py --live-ai`. This creates separate test accounts, runs the ordinary journey, then requests personal and default plans. It is never included in `npm run test:browser`.
 
 Ordinary native and browser checks make no paid model call. Browser plans are manual. Provider-failure checks verify a visible failure, safe request replay, unchanged reservations and the checked manual fallback.
+
+## Provider compatibility
+
+Checked official documentation and the installed native request path on 10 November 2026. `gemini-3.8-flash` has [no announced shutdown date](https://ai.google.dev/gemini-api/docs/deprecations#gemini-3-models); Google's documented route remains `v1beta/openai/chat/completions`. OpenRouter still supports `api/v1/chat/completions`, and its [current catalog](https://openrouter.ai/api/v1/models/openai/gpt-4.1-mini/endpoints) lists the suggested `openai/gpt-4.1-mini` with tool support. See [Google's compatibility guide](https://ai.google.dev/gemini-api/docs/openai) and [OpenRouter's API reference](https://openrouter.ai/docs/api_reference/overview).
+
+A separate, one-off protocol check ran both native providers against a loopback HTTPS fixture using fake keys, a temporary trusted certificate authority and enabled certificate validation. Nothing was forwarded to either service. Each provider completed three request rounds with Allfedo's six actual tools: two parallel reads, a further read, then a synthetic final response. Assertions checked the exact URL path, Bearer authentication, selected model, 1,200-token limit, tool schemas on every round, matching result IDs and grouped parallel results. No deprecated `functions` or `function_call` request fields were sent.
+
+Gemini also preserved both synthetic `extra_content.google.thought_signature` values on later requests. This metadata lets Google continue a tool-calling turn; omitting it can cause a validation error. The shape matches [Google's own compatibility code](https://github.com/google/adk-java/blob/main/core/src/main/java/com/google/adk/models/chat/ChatCompletionsRequest.java) and its [signature requirements](https://ai.google.dev/gemini-api/docs/thought-signatures). No application change was needed. This fixture checks request construction and replay, not real account access, billing, provider availability or model quality. It is separate from the ordinary 18-group runner.
 
 ## Verification limits
 
