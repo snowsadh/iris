@@ -14,6 +14,7 @@ XData UrlMap [ XMLNamespace = "http://www.intersystems.com/urlmap" ]
 <Routes>
   <Route Url="/commands" Method="POST" Call="Command"/>
   <Route Url="/plan-check" Method="POST" Call="PlanCheck"/>
+  <Route Url="/ai-settings" Method="POST" Call="AISettings"/>
   <Route Url="/logout" Method="POST" Call="Logout"/>
   <Route Url="/:resource/:id" Method="GET" Call="Read"/>
   <Route Url="/:resource" Method="GET" Call="Read"/>
@@ -27,6 +28,9 @@ ClassMethod Read(resource As %String, id As %String = "") As %Status
         If resource="session",id="" {
             Set result={"ok":true,"user":{"id":(""_actor.%Id()),"name":(actor.DisplayName),"role":(actor.Role),"organization_id":(actor.OrganizationId),"network_id":(actor.NetworkId)},"now":(##class(Allfedo.Policy).NowISO())}
             Do result.user.%Set("demo",##class(Allfedo.Demo).IsNetwork(actor.NetworkId),"boolean")
+        } ElseIf resource="ai-settings",id="" {
+            Do ..Check(actor.Role="coordinator",403,"FORBIDDEN","Only the coordinator configures planning AI.")
+            Set result=##class(Allfedo.AISettings).Read(actor,$Get(%session.Data("AllfedoAI")))
         } ElseIf resource="collectors",id="" {
             Set result=..Collectors(actor)
         } ElseIf resource="site",id="" {
@@ -113,6 +117,7 @@ ClassMethod Production(requestId As %String, action As %String, payload As %Dyna
 {
     Set message=##class(Allfedo.Message.CommandRequest).%New()
     Set message.RequestId=requestId, message.Action=action, message.PayloadJSON=payload.%ToJSON()
+    If action="plan_offer" Set message.AISettingsRef=$Get(%session.Data("AllfedoAI"))
     Set status=##class(Ens.Director).CreateBusinessService("Allfedo.Commands",.service)
     If $$$ISOK(status) Set status=service.ProcessInput(message,.response)
     If $$$ISOK(status) Set result=##class(Allfedo.Rescue).Parse(response.ResultJSON)
@@ -132,11 +137,34 @@ ClassMethod ReadBody() As %DynamicObject
     Quit body
 }
 
+/// Credentials go directly to the wallet, never through saved Production messages.
+ClassMethod AISettings() As %Status
+{
+    Try {
+        Set actor=..Principal(),body=..ReadBody(),previous=$Get(%session.Data("AllfedoAI"))
+        Do ..Check(actor.Role="coordinator",403,"FORBIDDEN","Only the coordinator configures planning AI.")
+        Set reference=""
+        If body.%Size()>0 Set reference=##class(Allfedo.AISettings).Store(actor,body)
+        Set %session.Data("AllfedoAI")=reference
+        Do ##class(Allfedo.AISettings).Clear(actor,previous)
+        Set status=..Reply(##class(Allfedo.AISettings).Read(actor,reference))
+    } Catch error {
+        If (error.Name="REJECTED")&&(error.Code=1000) {
+            Set status=..Reply({"ok":false,"error":{"code":"INVALID_AI_SETTINGS","message":(error.Data)}},422)
+        } Else {
+            Set status=..Failure(error)
+        }
+    }
+    Quit status
+}
+
 ClassMethod Logout() As %Status
 {
     Try {
         Set actor=..Principal()
         Do ..WriteGuard()
+        Do ##class(Allfedo.AISettings).Clear(actor,$Get(%session.Data("AllfedoAI")))
+        Kill %session.Data("AllfedoAI")
         Set %session.EndSession=1
         Set status=..Reply({"ok":true,"signed_out":true})
     } Catch error {
@@ -384,7 +412,7 @@ ClassMethod Plan(actor As Allfedo.Record.Actor, offerId As %String) As %DynamicO
     If found {
         Set run=##class(Allfedo.Rescue).Open("Allfedo.Record.AgentRun",query.ID)
         Set saved={"run_id":(""_run.%Id()),"state":(run.Outcome),"started_at":(..Time(run.StartedAt)),"finished_at":(..Time(run.FinishedAt))}
-        Set saved.model=run.Model
+        Set saved.model=run.Model,saved.provider=run.Provider,saved."credential_source"=run.CredentialSource
         Do saved.%Set("tool_audit","","null"),saved.%Set("usage","","null")
         If run.ToolAuditJSON'="" Set saved."tool_audit"=##class(Allfedo.Rescue).ParseArray(run.ToolAuditJSON)
         If run.UsageJSON'="" Set saved.usage=##class(Allfedo.Rescue).Parse(run.UsageJSON)

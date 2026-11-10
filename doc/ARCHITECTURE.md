@@ -14,7 +14,7 @@ flowchart LR
   API --> Commands[Allfedo.Commands service]
   Commands --> Rescue[Allfedo.Rescue process]
   Rescue -->|Planning only| Agent[Allfedo.Agent operation]
-  Agent --> Hub[Native AI Hub and OpenAI]
+  Agent --> Hub[Native AI Hub and configured provider]
   Rescue -->|Reviewed commands| Records[Guarded records and events]
   Records --> Outbox[Saved notification intentions]
   Outbox --> Mail[Allfedo.Mail operation]
@@ -40,6 +40,7 @@ Paths below are relative to `src/Allfedo/` unless shown otherwise.
 | `Redirect.cls` | Collector-reported problems, new receiving consent and linked onward collections. |
 | `Policy.cls`, `src/python/allfedo/` | Strict input parsing, proposal checks and physical-stock calculation. Python runs inside IRIS. |
 | `CaseTools.cls`, `Operation/Agent.cls` | Case-scoped tools and the bounded native AI Hub decision. |
+| `AISettings.cls` | Default provider, personal session keys in the native secure wallet and default-key allowance. |
 | `OutboxService.cls`, `Operation/Mail.cls` | Saved notifications, bounded retries and actual test email. |
 | `Record/` | Stored accounts, sites, facts, commitments, physical reports and history. |
 | `src/web/` | Role-specific screens, forms, local times and request recovery. No production package dependency or build step. |
@@ -88,7 +89,7 @@ Links use configured `ALLFEDO_PUBLIC_URL`, not browser request headers. Mailpit 
 
 ## Give the model a useful, bounded job
 
-`%AI.Provider`, `%AI.Agent` and `%AI.ToolSet` are native AI Hub interfaces. OpenAI supplies the model; Allfedo supplies authorized case facts and tools. No model weights are trained or modified. `gpt-4.1-mini` is the verified compatibility baseline, not a measured best-model claim.
+`%AI.Provider`, `%AI.Agent` and `%AI.ToolSet` are native AI Hub interfaces. The selected provider supplies the model; Allfedo supplies authorized case facts and tools. OpenAI is the live-tested default. No model weights are trained or modified. `gpt-4.1-mini` is the verified compatibility baseline, not a measured best-model claim.
 
 The agent reads an authorized snapshot of food and receiving needs taken at planning start. Tools also expose recorded collection agreements and permitted sources. Its tools are `ReadOffer`, `ReadCurrentNeeds`, `ReadCollectionFacts`, `ReadCaseEvidence`, `SubmitProposal` and `RequestReview`. Source text is untrusted data. There is no arbitrary SQL, file, shell or booking tool.
 
@@ -96,7 +97,11 @@ The agent chooses a recipient split or a concrete review question. Python checks
 
 Limits are four tool rounds, 1,200 configured output tokens, ten-second connection and twenty-second request timeouts, plus a ninety-second case deadline. These are bounds, not promised response times. Failed or interrupted attempts stay visible. Rechecking a request does not silently start another billed decision. A checked manual plan remains available.
 
-AgentRun stores the snapshot, configured model, proposal or failure, tool audit and start/end times. Native usage is optional and separately labelled; missing values remain unknown. Production business-message trace does not imply a separate trace record for every underlying provider exchange.
+AgentRun stores the snapshot, configured provider and model, default or personal connection source, proposal or failure, tool audit and start/end times. Native usage is optional and separately labelled; missing values remain unknown. Production business-message trace does not imply a separate trace record for every underlying provider exchange.
+
+Personal-key settings use a direct authenticated web endpoint rather than the business-message queue. The native wallet stores the key; session metadata keeps only the owning actor, provider, model and expiry. A planning message carries an opaque reference. The worker verifies its owner and expiry before reading the wallet. Signing out or selecting the default deletes the key. Expired entries cannot be used and are removed on later settings access.
+
+Default-key attempts are counted against saved AgentRun rows under a short allowance lock. The default is 50 per UTC day; an interrupted request keeps its existing result and does not reserve another attempt. No provider call runs while that lock is held. Existing AgentRun storage slots are preserved; provider and connection source append new slots.
 
 ## Access, storage and operating limits
 

@@ -41,7 +41,7 @@ ClassMethod File(path As %String) As %Status
 {
     Try {
         Set actor=##class(Allfedo.Web.API).Principal()
-        Set allowed=$ListBuild("index.html","styles.css","app.js","api.js","render.js","forms.js","time.js","views/kitchen.js","views/receiving.js","views/collections.js","views/coordinator.js","views/site.js","views/recovery.js","views/physical.js","views/redirect.js","assets/public-sans.ttf","assets/mark.svg","assets/wordmark.svg")
+        Set allowed=$ListBuild("index.html","styles.css","app.js","api.js","render.js","forms.js","time.js","views/kitchen.js","views/receiving.js","views/collections.js","views/coordinator.js","views/site.js","views/recovery.js","views/physical.js","views/redirect.js","views/settings.js","assets/public-sans.ttf","assets/mark.svg","assets/wordmark.svg")
         Do ##class(Allfedo.Web.API).Check($ListFind(allowed,path),404,"NOT_FOUND","This file does not exist.")
         Do ##class(Allfedo.Web.API).Check(##class(%File).Exists("/opt/allfedo/web/"_path),503,"APP_NOT_INSTALLED","The Allfedo browser files are not installed yet.")
         Set stream=##class(%Stream.FileBinary).%New(), status=stream.LinkToFile("/opt/allfedo/web/"_path)

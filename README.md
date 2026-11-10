@@ -34,7 +34,7 @@ When a pickup is short or a receiving door is closed, the app keeps the remainin
 
 IRIS runs the **Production**, its native integration workflow. A Business Service receives signed-in commands; a Business Process routes planning to the native AI Hub agent and other actions to the saved rescue rules.
 
-The agent uses OpenAI to make a proposal. Its case-scoped tools cannot reserve food or approve a pickup. Embedded Python checks proposed invitations and reconciles physical stock inside IRIS. Reviewed commitments are saved in short database transactions. A saved notification queue sends email with bounded retries.
+The agent uses the configured provider to make a proposal. OpenAI is the tested default. Its case-scoped tools cannot reserve food or approve a pickup. Embedded Python checks proposed invitations and reconciles physical stock inside IRIS. Reviewed commitments are saved in short database transactions. A saved notification queue sends email with bounded retries.
 
 The browser uses standard JavaScript modules, with responsive views for kitchens, receiving teams, collectors and coordinators. It needs no frontend build step or production package dependency.
 
@@ -42,14 +42,17 @@ The browser uses standard JavaScript modules, with responsive views for kitchens
 
 Requires **Docker Compose** and **Python 3.10+**. The tested runtime is **AI Hub Community `2027.1.0AI.109.0`**. Download its licensed Docker archive for your CPU from the [official AI Hub portal](https://evaluation.intersystems.com/Eval/early-access/AIHub).
 
-Create `.env` from [.env.example](.env.example). Set your own `OPENAI_API_KEY`; `OPENAI_MODEL` defaults to `gpt-4.1-mini`. Live planning uses paid provider calls. Setup and ordinary tests do not. Checked manual planning is available without a key.
+Run one command:
 
 ```bash
-python3 scripts/iris_runtime.py /path/to/iris-community-2027.1.0AI.109.0-docker.tar.gz --setup
-python3 scripts/demo.py
+python3 scripts/start.py
 ```
 
-Open **<http://127.0.0.1:52773/allfedo/>**. The second command creates six local accounts across four fictional partner sites. Read their generated credentials privately in `.env.demo.json`. Reruns preserve accounts and case history. The [sample journey](doc/DEMO.md) takes you through a complete collection.
+Choose OpenAI, OpenRouter or Google Gemini and enter your own key when prompted. Leave it empty for checked manual planning. The helper reuses existing private settings, finds the licensed archive in Downloads or asks for its path, starts IRIS and creates six fictional partner accounts. It opens **<http://127.0.0.1:52773/allfedo/>**. Live planning uses paid provider calls; setup and ordinary tests do not.
+
+Credentials stay in ignored local files. Read the generated partner logins in `.env.demo.json`; reruns preserve accounts and case history. The [sample journey](doc/DEMO.md) takes you through a complete collection.
+
+A hosted workspace can supply its own default AI connection. Coordinators can optionally use a personal key in **Settings**, without changing anyone else's connection. [Provider setup and key handling](doc/INSTALLATION.md#ai-connections).
 
 Email appears in the local [Mailpit test inbox](http://127.0.0.1:8025). Services bind to the local machine; named volumes preserve data. The proprietary image and private settings are not redistributed.
 

@@ -9,7 +9,6 @@ XData ProductionDefinition
   </Item>
   <Item Name="Allfedo.Rescue" Category="Rescue" ClassName="Allfedo.RescueProcess" PoolSize="2" Enabled="true" Foreground="false"/>
   <Item Name="Allfedo.Agent" Category="Rescue" ClassName="Allfedo.Operation.Agent" PoolSize="1" Enabled="true" Foreground="false">
-    <Setting Target="Host" Name="Model">gpt-4.1-mini</Setting>
     <Setting Target="Host" Name="RetryInterval">0</Setting>
     <Setting Target="Host" Name="FailureTimeout">0</Setting>
   </Item>

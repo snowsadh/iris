@@ -1,12 +1,12 @@
 # Native checks
 
-The normal runner installs these test classes and runs all 17 groups:
+The normal runner requires a running `Allfedo.Production`, installs these test classes and runs all 18 groups:
 
 ```bash
 python3 scripts/iris_runtime.py --test
 ```
 
-It includes provider failure, scheduled SMTP delivery and all three signed-in HTTP scenarios. It makes no paid model call. See the [validation record](../../doc/VALIDATION.md) for the release results and limits.
+It includes provider settings and failure, scheduled SMTP delivery and all three signed-in HTTP scenarios. It makes no paid model call. The runner clears `AI_API_KEY` and `OPENAI_API_KEY` and sets a one-attempt default allowance only in its test session; running workers keep their own environment. See the [validation record](../../doc/VALIDATION.md) for the release results and limits.
 
 Run these in the `ALLFEDO` namespace after installing the application classes and making `src/python` importable by Embedded Python. Load `AllfedoScenario.cls` first.
 
@@ -36,6 +36,8 @@ The core checks run on AI Hub Community `2027.1.0AI.109.0`. They cover guarded c
 `TestProductionLocks()` is a separate check that needs a running Production and an authenticated test principal without an existing Allfedo membership. It makes no model call. It temporarily binds only fresh synthetic partner accounts, sends six real Production commands against the same site, offer, and need. It verifies a recorded worker separate from the caller, then lets that caller acquire each resource lock while the Production remains running. The number of distinct workers is reported honestly; dispatch does not have to use multiple workers for every resource. The binding is restored afterward. A process crash can leave that fixture binding for manual inspection; the next run refuses to overwrite it.
 
 `ProveProductionWithModel()` is a **separate, paid, opt-in check**. Never include it in an ordinary test run. It requires a running `Allfedo.Production`, a configured provider key, and an authenticated native principal with no existing Allfedo membership. It temporarily binds a newly created synthetic coordinator to that principal, requests a native model proposal, checks that planning created no holds, then sends a separate command that saves holds and notification intentions. It restores the synthetic coordinator's original login afterward. A process crash can leave the temporary fixture binding for manual inspection; the next run refuses to overwrite it.
+
+`AllfedoAgentScenario.TestSettings()` uses a fake key to check native wallet ownership, expiry, deletion, all three provider factories, the shared default allowance and personal-key bypass. It saves the longest accepted model ID and rejects a longer one. Quota fixture runs are rolled back. The core HTTP scenario separately verifies that choosing the default and signing out delete both session metadata and the actual wallet entry.
 
 An outbox row is an intention to send. An SMTP acknowledgement is channel evidence. Neither proves that a receiving partner accepted food or that food was delivered.
 

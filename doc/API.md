@@ -11,17 +11,24 @@ Browsers sign in through `/allfedo/` and use the native session cookie. A partne
 | GET path | What it returns |
 | --- | --- |
 | `/session` | Current account, role, network, organization, and server time. No session secrets. |
+| `/ai-settings` | Coordinator only: providers and public connection status; never the key or internal reference. |
 | `/site` | The account's own organization profile, or `null`. |
 | `/offers`, `/offers/:id` | Kitchen's own offers; coordinator's network offers. |
 | `/needs`, `/needs/:id` | Receiving team's own needs; coordinator's network needs. |
 | `/allocations`, `/allocations/:id` | Collections addressed to the receiving team, supplied by the kitchen, or assigned to the collector. Coordinators see their network. |
 | `/collectors` | Approved network collectors, for receiving teams and coordinators. |
-| `/plans/:offer_id` | Coordinator's latest saved planning run, including its actual model, tool audit, and measured usage when available. |
+| `/plans/:offer_id` | Coordinator's latest saved planning run, including its configured provider and model, tool audit, and measured usage when available. |
 | `/worklist` | Coordinator's current follow-up items. |
 
 Direct record links enforce the same scope as lists. A private or missing record returns `404`. Linked deliveries include navigation permissions; receiving a child case does not grant access to its parent.
 
 Offers, needs, allocations, and collectors return `records` and `next_after`. Pass that value as `?after=...` for the next page; an empty value means done. Pages contain at most 100 records. Allocation lists also accept `offer_id` and `need_id` filters. The worklist has its own `has_more` flag and is capped at 100 items.
+
+## Personal AI settings
+
+A coordinator can POST `provider`, `model` and `api_key` to `/ai-settings` with the same JSON and request-header requirements as commands. Supported providers are `openai`, `openrouter` and `gemini`. POST `{}` to remove that session's personal connection and select the workspace default.
+
+These settings belong to the signed-in browser session. The server stores the key in the native secure wallet and returns only public status. Never send a key inside `/commands`; planning takes only its food-offer ID. Personal connections expire after one hour. An expired connection requires an explicit choice; it does not silently charge the default connection.
 
 ## Send a command
 

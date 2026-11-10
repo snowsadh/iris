@@ -144,6 +144,14 @@ export const api = {
       body: JSON.stringify(proposal),
     });
   },
+  configureAI(settings) {
+    // Keys go straight to the server wallet, outside command/retry storage.
+    return request("ai-settings", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Allfedo-Request": "1" },
+      body: JSON.stringify(settings),
+    });
+  },
   async command(action, payload) {
     // Resolve the form's "just now" marker once. Retries keep this exact instant.
     if (payload.occurred_at === null)

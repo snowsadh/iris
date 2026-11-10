@@ -11,6 +11,7 @@ Sign-in belongs to IRIS’s own password form. The app reads the signed-in perso
 - `render.js`: safe text and conditional-child rendering, saved facts and handoff drawings.
 - `forms.js`: shared input, local-time entry, allergen labels and save/retry behavior.
 - `time.js`: site-local dates, clock changes and explicit time conversion.
+- `views/settings.js`: optional personal provider settings; keys bypass command recovery storage.
 - `views/`: kitchen offers, receiving needs, invitation/trip flow, physical reports, commitment changes, coordinator review, onward delivery and partner locations.
 - `styles.css`: the service’s responsive layout and visual rules.
 
@@ -43,6 +44,8 @@ ALLFEDO_BROWSER_ACCOUNTS=/path/to/private-test-accounts.json node tests/browser/
 ```
 
 That private file needs `accounts.coordinator`, `accounts.kitchen`, `accounts.recipient`, `accounts.collector` and `accounts.recipient2`. Each contains `username`, `password` and `actor_id`. Optional `base_url` defaults to `http://127.0.0.1:52773/allfedo/`. Use a fresh fixture for each full run. Never commit this file. The local demo setup supplies invited accounts separately.
+
+`npm run test:settings` uses the local demo accounts to check the real settings form, wallet storage, session isolation, role restrictions, key removal and narrow layouts. It uses a fake key and makes no model call.
 
 The time checks run without IRIS. Browser checks require the running, configured application. Neither proves food safety, real transport capacity or a successful physical rescue.
 

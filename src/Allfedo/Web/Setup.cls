@@ -7,6 +7,8 @@ ClassMethod Configure() As %Status
 {
     Set status=..Security()
     If $$$ISERR(status) Quit status
+    Set status=##class(Allfedo.AISettings).Install()
+    If $$$ISERR(status) Quit status
     Set status=..Application("/allfedo/api","Allfedo.Web.API","")
     If $$$ISERR(status) Quit status
     Set status=..Application("/allfedo","Allfedo.Web.App","Allfedo.Web.Login.cls")
